@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Decision Agent</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <img src="../icons/icon48.png" alt="logo" class="header-logo" />
+      <span class="header-title">Shopping Decision Agent</span>
+    </div>
+    <button id="settingsBtn" class="settings-btn" title="Settings" aria-label="Open settings">⚙️</button>
+  </header>
+
+  <!-- ── States ──────────────────────────────────────────────── -->
+
+  <!-- Not-a-product-page state -->
+  <div id="stateNotProduct" class="state hidden">
+    <div class="state-icon">🛒</div>
+    <h2>Not a product page</h2>
+    <p>Navigate to an Amazon product page and click the extension icon to analyse it.</p>
+  </div>
+
+  <!-- No-API-key state -->
+  <div id="stateNoKey" class="state hidden">
+    <div class="state-icon">🔑</div>
+    <h2>API Key Required</h2>
+    <p>Add your OpenAI API key in Settings to enable AI analysis.</p>
+    <button id="goToSettingsBtn" class="btn-primary">Open Settings</button>
+  </div>
+
+  <!-- Loading state -->
+  <div id="stateLoading" class="state hidden">
+    <div class="spinner"></div>
+    <p class="loading-text">Analysing product…</p>
+    <p id="loadingProduct" class="loading-product"></p>
+  </div>
+
+  <!-- Error state -->
+  <div id="stateError" class="state hidden">
+    <div class="state-icon">⚠️</div>
+    <h2 id="errorTitle">Something went wrong</h2>
+    <p id="errorMsg"></p>
+    <button id="retryBtn" class="btn-primary">Try Again</button>
+  </div>
+
+  <!-- ── Results ─────────────────────────────────────────────── -->
+  <main id="stateResults" class="results hidden">
+
+    <!-- Product info bar -->
+    <div class="product-bar">
+      <p id="productTitle" class="product-title"></p>
+      <div class="product-meta">
+        <span id="productPrice" class="product-price"></span>
+        <span id="productRating" class="product-rating"></span>
+      </div>
+    </div>
+
+    <!-- Score + Summary -->
+    <div class="score-section">
+      <div class="score-circle-wrap">
+        <div id="scoreCircle" class="score-circle">
+          <span id="scoreValue" class="score-value">–</span>
+          <span class="score-label">/10</span>
+        </div>
+        <p class="score-caption">Reliability</p>
+      </div>
+      <p id="summary" class="summary-text"></p>
+    </div>
+
+    <!-- Pros & Cons -->
+    <div class="pros-cons">
+      <div class="pros">
+        <h3>✅ Pros</h3>
+        <ul id="prosList"></ul>
+      </div>
+      <div class="cons">
+        <h3>❌ Cons</h3>
+        <ul id="consList"></ul>
+      </div>
+    </div>
+
+    <!-- Fake Review Analysis -->
+    <div class="analysis-card">
+      <div class="analysis-card-header">
+        <span class="analysis-icon">🔍</span>
+        <h3>Fake Review Analysis</h3>
+        <span id="fakeRiskBadge" class="risk-badge"></span>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-bg">
+          <div id="riskBar" class="risk-bar"></div>
+        </div>
+        <span id="riskPercent" class="risk-percent"></span>
+      </div>
+      <p id="fakeExplanation" class="analysis-text"></p>
+    </div>
+
+    <!-- Price Drop Prediction -->
+    <div class="analysis-card">
+      <div class="analysis-card-header">
+        <span class="analysis-icon">📈</span>
+        <h3>Price Drop Prediction</h3>
+        <span id="priceLikelihoodBadge" class="risk-badge"></span>
+      </div>
+      <p id="priceTimeframe" class="analysis-subtext"></p>
+      <p id="priceExplanation" class="analysis-text"></p>
+    </div>
+
+    <!-- Alternatives -->
+    <div class="analysis-card">
+      <div class="analysis-card-header">
+        <span class="analysis-icon">🏆</span>
+        <h3>Competitor Alternatives</h3>
+      </div>
+      <ul id="alternativesList" class="alternatives-list"></ul>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="result-footer">
+      <span id="cachedNote" class="cached-note hidden">⚡ Cached result</span>
+      <button id="refreshBtn" class="btn-refresh">🔄 Re-analyse</button>
+    </div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

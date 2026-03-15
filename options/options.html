@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Decision Agent – Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="../icons/icon48.png" alt="Shopping Decision Agent icon" class="logo" />
+      <div>
+        <h1>Shopping Decision Agent</h1>
+        <p class="subtitle">Settings</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>OpenAI API Key</h2>
+      <p class="hint">
+        Your API key is stored locally on your device and is never sent anywhere
+        except directly to OpenAI's API.
+        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">
+          Get your API key →
+        </a>
+      </p>
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <div class="input-row">
+          <input
+            type="password"
+            id="apiKey"
+            placeholder="sk-..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="toggleVisibility" class="icon-btn" title="Show / hide key" aria-label="Toggle key visibility">
+            👁
+          </button>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="save" class="btn-primary">Save</button>
+        <button id="clear" class="btn-danger">Clear</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Supported Sites</h2>
+      <ul class="site-list">
+        <li>✅ amazon.com</li>
+        <li>✅ amazon.co.uk</li>
+        <li>✅ amazon.ca</li>
+        <li>✅ amazon.de</li>
+        <li>✅ amazon.fr</li>
+        <li>✅ amazon.co.jp</li>
+        <li>✅ amazon.in</li>
+        <li>✅ amazon.com.au</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Shopping Decision Agent v1.0.0</p>
+    </footer>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
