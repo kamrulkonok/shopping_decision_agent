@@ -22,6 +22,7 @@
 
   const UI = {
     panelId: "ai-shopping-agent-analysis-panel",
+    panelCollapsedKey: "ai-shopping-agent-panel-collapsed",
   };
 
   let latestProductContext = null;
@@ -388,6 +389,210 @@
     return panel;
   }
 
+  function getPanelCollapsedState() {
+    try {
+      return sessionStorage.getItem(UI.panelCollapsedKey) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function setPanelCollapsedState(isCollapsed) {
+    try {
+      sessionStorage.setItem(UI.panelCollapsedKey, isCollapsed ? "1" : "0");
+    } catch {
+      // Ignore storage failures.      // backend/agents/decisionAgent.js
+      function clamp(v, min = 0, max = 100) {
+        return Math.max(min, Math.min(max, v));
+      }
+      
+      function toNum(v, fallback = 0) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallback;
+      }
+      
+      function normalizeRisk(risk) {
+        if (risk === "low" || risk === "medium" || risk === "high") return risk;
+        return "unknown";
+      }
+      
+      function riskBasePenalty(risk) {
+        if (risk === "low") return 5;
+        if (risk === "medium") return 15;
+        if (risk === "high") return 30;
+        return 12; // unknown
+      }
+      
+      function runDecisionAgent(productContext, reviewIntelligence) {
+        const avgRating = clamp((toNum(productContext.average_rating, 0) / 5) * 100);
+        const totalRatings = Math.max(0, Math.round(toNum(productContext.total_ratings, 0)));
+        const volumeScore = clamp((Math.log10(totalRatings + 1) / Math.log10(5001)) * 100);
+      
+        const featuresCount = Array.isArray(productContext.features) ? productContext.features.length : 0;
+        const featureScore = clamp((featuresCount / 12) * 100);
+      
+        const prosCount = Array.isArray(reviewIntelligence.pros) ? reviewIntelligence.pros.length : 0;
+        const consCount = Array.isArray(reviewIntelligence.cons) ? reviewIntelligence.cons.length : 0;
+        const prosConsScore = prosCount + consCount === 0
+          ? 50
+          : clamp((prosCount / (prosCount + consCount)) * 100);
+      
+        const clusters = Array.isArray(reviewIntelligence.sentiment_clusters)
+          ? reviewIntelligence.sentiment_clusters
+          : [];
+        let weighted = 0;
+        let totalClusterCount = 0;
+        let negativeClusterCount = 0;
+      
+        for (const c of clusters) {
+          const count = Math.max(0, Math.round(toNum(c?.count, 0)));
+          totalClusterCount += count;
+          if ((c?.sentiment || "").toLowerCase() === "positive") weighted += count * 1.0;
+          else if ((c?.sentiment || "").toLowerCase() === "mixed") weighted += count * 0.5;
+          else {
+            weighted += count * 0.0;
+            negativeClusterCount += count;
+          }
+        }
+      
+        const sentimentScore = totalClusterCount > 0
+          ? clamp((weighted / totalClusterCount) * 100)
+          : 50;
+      
+        const reliabilityScore = clamp(toNum(reviewIntelligence.reliability_score, 50));
+        const reliabilityConfidence = Math.max(
+          0,
+          Math.min(1, toNum(reviewIntelligence.reliability_confidence, 0.25))
+        );
+      
+        const telemetry = reviewIntelligence.telemetry || {};
+        const inputReviews = Math.max(0, Math.round(toNum(telemetry.input_reviews, 0)));
+        const usableReviews = Math.max(0, Math.round(toNum(telemetry.usable_reviews, 0)));
+        const dedupedReviews = Math.max(0, Math.round(toNum(telemetry.deduped_reviews, 0)));
+        const llmUsed = Boolean(telemetry.llm_used);
+        const blockedByCaptcha = Boolean(telemetry.blocked_by_captcha);
+      
+        const usabilityRatio = inputReviews > 0 ? usableReviews / inputReviews : 0;
+        const dedupeRetention = usableReviews > 0 ? dedupedReviews / usableReviews : 0;
+        const sampleStrength = clamp((usableReviews / 60) * 100);
+      
+        const evidenceScore = clamp(
+          0.45 * sampleStrength +
+          0.25 * (usabilityRatio * 100) +
+          0.20 * (dedupeRetention * 100) +
+          0.10 * (llmUsed ? 100 : 70)
+        );
+      
+        const price = Math.max(0, toNum(productContext.price, 0));
+        // Simple no-benchmark value proxy: cheaper gets a mild boost, expensive mild drag.
+        const pricePressure = clamp((Math.log10(price + 1) / 3) * 100); // ~0..100
+        const valueScore = clamp(
+          0.55 * ((0.60 * avgRating + 0.40 * sentimentScore)) +
+          0.25 * featureScore +
+          0.20 * (100 - pricePressure)
+        );
+      
+        const qualityScore = clamp(
+          0.35 * avgRating +
+          0.20 * volumeScore +
+          0.25 * sentimentScore +
+          0.20 * prosConsScore
+        );
+      
+        const risk = normalizeRisk(reviewIntelligence.fake_review_risk);
+        const negativeRatio = totalClusterCount > 0 ? negativeClusterCount / totalClusterCount : 0;
+        const riskPenalty = clamp(
+          riskBasePenalty(risk) +
+          (consCount >= 5 ? 6 : 0) +
+          (negativeRatio >= 0.35 ? 8 : 0) +
+          (blockedByCaptcha ? 10 : 0)
+        );
+      
+        const rawScore = clamp(
+          0.35 * qualityScore +
+          0.25 * valueScore +
+          0.25 * reliabilityScore +
+          0.15 * evidenceScore
+        );
+      
+        const decisionScore = clamp(rawScore - riskPenalty);
+      
+        const confidence = Math.max(
+          0,
+          Math.min(
+            1,
+            0.40 * reliabilityConfidence +
+            0.35 * (evidenceScore / 100) +
+            0.15 * (usableReviews >= 20 ? 1 : usableReviews / 20) +
+            0.10 * (llmUsed ? 1 : 0.75) -
+            (blockedByCaptcha ? 0.20 : 0)
+          )
+        );
+      
+        let decisionState = "sufficient_data";
+        if (usableReviews < 8 || evidenceScore < 35) {
+          decisionState = "insufficient_data";
+        }
+      
+        let recommendation = "consider";
+        if (decisionScore >= 72 && confidence >= 0.55 && risk !== "high" && decisionState === "sufficient_data") {
+          recommendation = "buy";
+        } else if (decisionScore < 50 || risk === "high") {
+          recommendation = "avoid";
+        } else {
+          recommendation = "consider";
+        }
+      
+        // Confidence guardrail: no hard BUY on low confidence.
+        if (recommendation === "buy" && confidence < 0.55) {
+          recommendation = "consider";
+        }
+      
+        const topReasons = [];
+        if (avgRating >= 80) topReasons.push("Strong average rating signal.");
+        if (reliabilityScore >= 70) topReasons.push("Review reliability appears good.");
+        if (featureScore >= 60) topReasons.push("Feature set is relatively strong for category.");
+        if (prosCount > consCount) topReasons.push("Pros materially outweigh cons in extracted reviews.");
+        if (valueScore >= 65) topReasons.push("Value-for-money signal is positive.");
+      
+        const redFlags = [];
+        if (risk === "high") redFlags.push("High fake/suspicious review risk signal.");
+        if (blockedByCaptcha) redFlags.push("Review crawling encountered anti-bot/captcha friction.");
+        if (consCount >= 5) redFlags.push("Cons volume is notable.");
+        if (decisionState === "insufficient_data") redFlags.push("Not enough high-quality review evidence.");
+      
+        return {
+          recommendation, // buy | consider | avoid
+          decision_score: Math.round(decisionScore),
+          confidence: Number(confidence.toFixed(2)),
+          decision_state: decisionState, // sufficient_data | insufficient_data
+          quality_score: Math.round(qualityScore),
+          value_score: Math.round(valueScore),
+          evidence_score: Math.round(evidenceScore),
+          risk_penalty: Math.round(riskPenalty),
+          top_reasons: topReasons.slice(0, 5),
+          red_flags: redFlags.slice(0, 5),
+        };
+      }
+      
+      module.exports = { runDecisionAgent };
+    }
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return "n/a";
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "n/a";
+
+    return date.toLocaleString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      month: "short",
+      day: "2-digit",
+    });
+  }
+
   function createListHtml(items) {
     const safeItems = Array.isArray(items) ? items : [];
     if (safeItems.length === 0) {
@@ -411,11 +616,29 @@
     const score = intelligence?.reliability_score ?? "n/a";
     const risk = intelligence?.fake_review_risk || "unknown";
     const summary = intelligence?.review_summary || "No summary available.";
+    const isCollapsed = getPanelCollapsedState();
+    const nowLabel = formatTimestamp(new Date());
+
+    const summarySection = isCollapsed
+      ? ""
+      : `
+      <div style="margin-bottom:10px;"><strong>Summary:</strong><br>${String(summary).replace(/</g, "&lt;")}</div>
+      <div style="margin-bottom:8px;"><strong>Pros</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.pros)}</ul></div>
+      <div style="margin-bottom:4px;"><strong>Cons</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.cons)}</ul></div>
+    `;
 
     panel.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
         <strong style="font-size:13px;">AI Review Intelligence</strong>
-        <button id="ai-shopping-agent-rerun-btn" style="border:1px solid #d1d5db; background:#f9fafb; color:#111827; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:12px;">Re-run Analysis</button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="display:inline-block; border:1px solid #d1d5db; border-radius:999px; padding:3px 8px; background:#f9fafb; color:#374151; font-size:11px;">
+            Updated: ${nowLabel}
+          </span>
+          <button id="ai-shopping-agent-toggle-btn" style="border:1px solid #d1d5db; background:#f9fafb; color:#111827; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:12px;">${
+            isCollapsed ? "Expand" : "Minimize"
+          }</button>
+          <button id="ai-shopping-agent-rerun-btn" style="border:1px solid #d1d5db; background:#f9fafb; color:#111827; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:12px;">Re-run</button>
+        </div>
       </div>
       <div style="margin-bottom:8px; color:#374151;"><strong>ASIN:</strong> ${asin}</div>
       <div style="margin-bottom:8px; color:#111827;"><strong>Title:</strong> ${String(title).replace(/</g, "&lt;")}</div>
@@ -426,10 +649,16 @@
         <div><strong>Model:</strong> ${String(model).replace(/</g, "&lt;")}</div>
       </div>
       <div style="margin-bottom:8px; color:#6b7280;"><strong>Source:</strong> ${source}</div>
-      <div style="margin-bottom:10px;"><strong>Summary:</strong><br>${String(summary).replace(/</g, "&lt;")}</div>
-      <div style="margin-bottom:8px;"><strong>Pros</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.pros)}</ul></div>
-      <div style="margin-bottom:4px;"><strong>Cons</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.cons)}</ul></div>
+      ${summarySection}
     `;
+
+    const toggleButton = panel.querySelector("#ai-shopping-agent-toggle-btn");
+    if (toggleButton) {
+      toggleButton.addEventListener("click", () => {
+        setPanelCollapsedState(!getPanelCollapsedState());
+        renderAnalysisPanel({ productContext, intelligence, source });
+      });
+    }
 
     const rerunButton = panel.querySelector("#ai-shopping-agent-rerun-btn");
     if (rerunButton) {
