@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "AI Shopping Agent",
+  "version": "1.0",
+  "description": "AI assistant for shopping decisions",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://*.amazon.com/*", "http://localhost:3000/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.amazon.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

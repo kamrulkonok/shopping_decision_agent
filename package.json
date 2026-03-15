@@ -1,0 +1,20 @@
+{
+  "name": "shopping_decision_agent",
+  "version": "1.0.0",
+  "description": "End-to-end chorme extension for shopping AI to make decision, and recommendations and give review.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node backend/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
