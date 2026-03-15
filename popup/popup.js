@@ -106,11 +106,10 @@ function renderResults(productData, analysis, cached) {
   $('fakeExplanation').textContent = fakeData.explanation || '';
 
   // Price drop prediction
+  // Note: for price-drop likelihood the badge colour semantics are *inverted* compared
+  // to fake-review risk: a HIGH likelihood of a price drop is good news (green badge),
+  // while LOW likelihood means the user will likely have to pay full price (red badge).
   const priceData = analysis.price_drop_prediction || {};
-  setRiskBadge($('priceLikelihoodBadge'), priceData.likelihood);
-  $('priceLikelihoodBadge').style.background = '';
-  // Reuse badge for likelihood with different semantics:
-  // high likelihood of drop = good (green), low = neutral
   const priceBadge = $('priceLikelihoodBadge');
   const pLevelLower = (priceData.likelihood || '').toLowerCase();
   priceBadge.className = 'risk-badge ' +
@@ -154,7 +153,6 @@ function escapeHtml(str) {
 // ─── Main analysis flow ─────────────────────────────────────
 
 let currentTab = null;
-let lastProductData = null;
 
 async function runAnalysis(forceRefresh) {
   showState('loading');
@@ -196,17 +194,14 @@ async function runAnalysis(forceRefresh) {
     return;
   }
 
-  lastProductData = productData;
-
-  // Optionally force-clear the session cache by using a sentinel
-  const dataToSend = forceRefresh
-    ? { ...productData, _refresh: Date.now() }
-    : productData;
-
-  // Send to service worker for AI analysis
+  // Send to service worker for AI analysis (pass forceRefresh so it can bust the cache)
   let response;
   try {
-    response = await chrome.runtime.sendMessage({ action: 'analyze', productData: dataToSend });
+    response = await chrome.runtime.sendMessage({
+      action: 'analyze',
+      productData,
+      forceRefresh: !!forceRefresh
+    });
   } catch (err) {
     showError('Extension error', err.message || 'Unknown error');
     return;

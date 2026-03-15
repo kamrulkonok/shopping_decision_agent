@@ -15,7 +15,7 @@ const sessionCache = new Map();
 
 chrome.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
   if (message.action === 'analyze') {
-    handleAnalyze(message.productData)
+    handleAnalyze(message.productData, message.forceRefresh)
       .then(sendResponse)
       .catch(err => sendResponse({ error: err.message || 'Unknown error' }));
     return true; // Keep the message channel open for async response
@@ -24,17 +24,25 @@ chrome.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
 
 /**
  * Orchestrates the product analysis:
- * 1. Checks session cache
+ * 1. Checks session cache (unless forceRefresh is set)
  * 2. Retrieves API key from storage
  * 3. Calls OpenAI
  * 4. Caches and returns result
  */
-async function handleAnalyze(productData) {
+async function handleAnalyze(productData, forceRefresh) {
   if (!productData) {
     return { error: 'No product data provided.' };
   }
 
-  const cacheKey = CACHE_KEY_PREFIX + (productData.asin || productData.title);
+  // Build a cache key using ASIN when available, falling back to title + URL
+  // to avoid collisions between different products that may share a title.
+  const cacheKey = CACHE_KEY_PREFIX +
+    (productData.asin || (productData.title + '|' + (productData.url || '')));
+
+  // Clear cache entry if force-refresh was requested
+  if (forceRefresh) {
+    sessionCache.delete(cacheKey);
+  }
 
   // Return cached result if available
   if (sessionCache.has(cacheKey)) {

@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     if (!key.startsWith('sk-')) {
-      showStatus('API key should start with "sk-". Please verify.', 'error');
+      showStatus('API key should start with "sk-". Please verify your key and try again.', 'error');
       return;
     }
     chrome.storage.sync.set({ apiKey: key }, function () {
