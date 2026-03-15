@@ -12,6 +12,10 @@ const {
 	validateReviewIntelligencePayload,
 } = require("./schemas/reviewIntelligenceSchema");
 const {
+	decisionSchema,
+	validateDecisionPayload,
+} = require("./schemas/decisionSchema");
+const {
 	runReviewIntelligenceOrchestrator,
 } = require("./orchestrators/reviewIntelligenceOrchestrator");
 
@@ -35,6 +39,10 @@ app.get("/schema/product-context", (req, res) => {
 
 app.get("/schema/review-intelligence", (req, res) => {
 	res.json(reviewIntelligenceSchema);
+});
+
+app.get("/schema/decision", (req, res) => {
+	res.json(decisionSchema);
 });
 
 app.post("/analyze-product", (req, res) => {
@@ -91,7 +99,8 @@ app.post("/analyze-reviews", async (req, res) => {
 	}
 
 	try {
-		const reviewIntelligence = await runReviewIntelligenceOrchestrator(payload);
+		const analysisResult = await runReviewIntelligenceOrchestrator(payload);
+		const reviewIntelligence = analysisResult.review_intelligence;
 		const reviewValidation = validateReviewIntelligencePayload(reviewIntelligence);
 
 		if (!reviewValidation.valid) {
@@ -105,12 +114,35 @@ app.post("/analyze-reviews", async (req, res) => {
 			});
 		}
 
-		res.json({
+		const response = {
 			ok: true,
 			step: "review-intelligence",
 			product_id: payload.product_id,
 			review_intelligence: reviewIntelligence,
-		});
+		};
+
+		if (analysisResult.decision) {
+			const decisionValidation = validateDecisionPayload(analysisResult.decision);
+
+			if (!decisionValidation.valid) {
+				return res.status(500).json({
+					ok: false,
+					code: "INVALID_DECISION_PAYLOAD",
+					message: "Generated decision payload is missing required fields.",
+					details: {
+						missing_fields: decisionValidation.missingFields,
+					},
+				});
+			}
+
+			response.decision = analysisResult.decision;
+		}
+
+		if (analysisResult.decision_unavailable) {
+			response.decision_unavailable = analysisResult.decision_unavailable;
+		}
+
+		res.json(response);
 	} catch (error) {
 		res.status(500).json({
 			ok: false,

@@ -3,6 +3,12 @@ const {
 } = require("../agents/reviewIntelligenceLLMAgent");
 const { runReliabilityScoringAgent } = require("../agents/reliabilityScoringAgent");
 const { runQualityGuardAgent } = require("../agents/qualityGuardAgent");
+const { runDecisionAgent } = require("../agents/decisionAgent");
+const { runDecisionGuardAgent } = require("../agents/decisionGuardAgent");
+
+function isDecisionLayerEnabled() {
+  return String(process.env.DECISION_LAYER_ENABLED || "false").toLowerCase() === "true";
+}
 
 function normalizeText(value) {
   return String(value || "")
@@ -56,7 +62,7 @@ async function runReviewIntelligenceOrchestrator(productContext) {
     blockedByCaptcha: Boolean(productContext.blocked_by_captcha),
   });
 
-  const merged = {
+  const reviewIntelligence = {
     ...llmResult,
     reliability_score: scoreResult.reliability_score,
     reliability_confidence: scoreResult.reliability_confidence,
@@ -70,7 +76,46 @@ async function runReviewIntelligenceOrchestrator(productContext) {
     },
   };
 
-  return runQualityGuardAgent(merged);
+  const guardedReviewIntelligence = runQualityGuardAgent(reviewIntelligence);
+
+  if (!isDecisionLayerEnabled()) {
+    return {
+      review_intelligence: guardedReviewIntelligence,
+      decision: null,
+      decision_unavailable: null,
+    };
+  }
+
+  try {
+    const decisionStart = Date.now();
+    const rawDecision = runDecisionAgent({
+      productContext,
+      reviewIntelligence: guardedReviewIntelligence,
+    });
+    const decision = runDecisionGuardAgent(rawDecision);
+    const decisionLatency = Date.now() - decisionStart;
+
+    return {
+      review_intelligence: guardedReviewIntelligence,
+      decision: {
+        ...decision,
+        telemetry: {
+          decision_latency_ms: decisionLatency,
+          decision_fallback_used: false,
+        },
+      },
+      decision_unavailable: null,
+    };
+  } catch (error) {
+    return {
+      review_intelligence: guardedReviewIntelligence,
+      decision: null,
+      decision_unavailable: {
+        code: "DECISION_AGENT_ERROR",
+        message: error.message,
+      },
+    };
+  }
 }
 
 module.exports = {
