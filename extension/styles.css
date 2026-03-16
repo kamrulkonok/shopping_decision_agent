@@ -1,0 +1,283 @@
+:root {
+	--asa-bg: #f8fafc;
+	--asa-card-bg: #ffffff;
+	--asa-ink: #14233a;
+	--asa-muted: #58677b;
+	--asa-border: #d7e0ea;
+	--asa-accent: #0e7490;
+	--asa-shadow: 0 18px 42px rgba(17, 34, 56, 0.2);
+	--asa-buy-bg: #e6f8ee;
+	--asa-buy-border: #8ed8ad;
+	--asa-consider-bg: #fff4db;
+	--asa-consider-border: #f2c87d;
+	--asa-avoid-bg: #ffe8e5;
+	--asa-avoid-border: #f2a39a;
+	--asa-warn-bg: #fff4db;
+	--asa-warn-border: #f2c87d;
+	--asa-danger-bg: #ffe8e5;
+	--asa-danger-border: #f2a39a;
+}
+
+#ai-shopping-agent-analysis-panel {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 2147483647;
+	width: min(390px, calc(100vw - 20px));
+	max-height: 78vh;
+	overflow: auto;
+	background:
+		radial-gradient(160% 80% at -10% 0%, #eef5ff 0%, transparent 62%),
+		radial-gradient(140% 65% at 120% 110%, #fff1df 0%, transparent 60%),
+		var(--asa-bg);
+	color: var(--asa-ink);
+	border: 1px solid var(--asa-border);
+	border-radius: 16px;
+	box-shadow: var(--asa-shadow);
+	padding: 14px;
+	font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+	font-size: 12px;
+	line-height: 1.45;
+	animation: asaFadeIn 220ms ease-out;
+}
+
+@keyframes asaFadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px) scale(0.99);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+.asa-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.asa-title {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.2;
+	font-weight: 700;
+	letter-spacing: 0.2px;
+}
+
+.asa-subtitle {
+	margin-top: 2px;
+	font-size: 11px;
+	color: var(--asa-muted);
+}
+
+.asa-pill-row {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.asa-pill {
+	border: 1px solid var(--asa-border);
+	background: var(--asa-card-bg);
+	color: var(--asa-muted);
+	border-radius: 999px;
+	padding: 3px 8px;
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+.asa-card {
+	border: 1px solid var(--asa-border);
+	border-radius: 12px;
+	background: var(--asa-card-bg);
+	padding: 10px;
+	margin-bottom: 10px;
+}
+
+.asa-verdict.buy {
+	background: var(--asa-buy-bg);
+	border-color: var(--asa-buy-border);
+}
+
+.asa-verdict.consider,
+.asa-verdict.insufficient_data {
+	background: var(--asa-consider-bg);
+	border-color: var(--asa-consider-border);
+}
+
+.asa-verdict.avoid {
+	background: var(--asa-avoid-bg);
+	border-color: var(--asa-avoid-border);
+}
+
+.asa-verdict-label {
+	margin: 0;
+	font-size: 11px;
+	color: var(--asa-muted);
+}
+
+.asa-verdict-main {
+	margin-top: 2px;
+	font-size: 20px;
+	line-height: 1.1;
+	font-weight: 800;
+	letter-spacing: 0.3px;
+}
+
+.asa-verdict-sub {
+	margin-top: 4px;
+	font-size: 12px;
+	color: #2e3d52;
+}
+
+.asa-grid-2 {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.asa-metric {
+	border: 1px solid var(--asa-border);
+	border-radius: 10px;
+	background: var(--asa-card-bg);
+	padding: 8px;
+}
+
+.asa-metric-label {
+	margin: 0;
+	font-size: 10px;
+	color: var(--asa-muted);
+}
+
+.asa-metric-value {
+	margin-top: 3px;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.asa-section {
+	margin-bottom: 10px;
+}
+
+.asa-section-title {
+	margin: 0 0 6px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.asa-list {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.asa-list li {
+	margin: 3px 0;
+}
+
+.asa-pros-cons {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.asa-alert {
+	border-radius: 10px;
+	padding: 9px;
+	margin-bottom: 10px;
+	border: 1px solid var(--asa-border);
+}
+
+.asa-alert.warn {
+	background: var(--asa-warn-bg);
+	border-color: var(--asa-warn-border);
+}
+
+.asa-alert.danger {
+	background: var(--asa-danger-bg);
+	border-color: var(--asa-danger-border);
+}
+
+.asa-summary {
+	color: #24364e;
+}
+
+.asa-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.asa-btn {
+	border: 1px solid var(--asa-border);
+	border-radius: 9px;
+	padding: 6px 10px;
+	cursor: pointer;
+	font-size: 12px;
+	background: var(--asa-card-bg);
+	color: var(--asa-ink);
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.asa-btn:hover:enabled {
+	transform: translateY(-1px);
+	box-shadow: 0 8px 18px rgba(20, 35, 58, 0.14);
+}
+
+.asa-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.asa-details {
+	border-top: 1px dashed var(--asa-border);
+	padding-top: 8px;
+}
+
+.asa-details > summary {
+	cursor: pointer;
+	color: var(--asa-accent);
+	font-size: 11px;
+}
+
+.asa-loading {
+	display: grid;
+	gap: 8px;
+}
+
+.asa-skeleton {
+	height: 12px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, #e9eef5 0%, #f6f8fb 50%, #e9eef5 100%);
+	background-size: 240px 100%;
+	animation: asaShimmer 1.2s infinite linear;
+}
+
+@keyframes asaShimmer {
+	from {
+		background-position: -240px 0;
+	}
+	to {
+		background-position: 240px 0;
+	}
+}
+
+@media (max-width: 640px) {
+	#ai-shopping-agent-analysis-panel {
+		right: 10px;
+		bottom: 10px;
+		width: calc(100vw - 20px);
+		max-height: 74vh;
+		padding: 12px;
+	}
+
+	.asa-grid-2,
+	.asa-pros-cons {
+		grid-template-columns: 1fr;
+	}
+}
