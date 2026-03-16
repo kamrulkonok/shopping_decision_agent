@@ -12,13 +12,13 @@
     maxAttempts: 20,
     intervalMs: 500,
     maxReviewPages: 10,
-    maxReviews: 250,
+    maxReviews: 100,
     reviewSorts: ["recent", "helpful"],
     backendUrl: "http://localhost:3000/analyze-reviews",
     sessionPostedAsinsKey: "ai-shopping-agent-posted-asins",
     forceResendOnceKey: "ai-shopping-agent-force-resend-once",
     analysisCachePrefix: "ai-shopping-agent-analysis",
-    analysisCacheVersion: 2,
+    analysisCacheVersion: 3,
   };
 
   const UI = {
@@ -343,6 +343,13 @@
           return;
         }
 
+        // Old cache entries may contain only review_intelligence (no decision payload).
+        // Discard them so the panel reflects the current backend contract.
+        if (!cached?.payload?.decision) {
+          resolve(null);
+          return;
+        }
+
         resolve(cached);
       });
     });
@@ -513,9 +520,7 @@
       ? String(decision.recommendation || "consider").toUpperCase()
       : "PENDING";
     const decisionTone = getDecisionToneClass(decision);
-    const decisionState = hasDecision
-      ? decision?.decision_state || "insufficient_data"
-      : "insufficient_data";
+    const decisionState = decision?.decision_state || "insufficient_data";
     const alertTone = getAlertTone(risk, decisionState);
     const hasFlags = Array.isArray(decision?.red_flags) && decision.red_flags.length > 0;
 
@@ -558,6 +563,15 @@
           <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 3)}</ul>
         </article>
       </section>
+
+      ${
+        !hasDecision
+          ? `<section class="asa-alert warn">
+          <h4 class="asa-section-title">Decision Status</h4>
+          <div>Decision payload is missing from backend response. Re-run analysis after reloading the extension/backend.</div>
+        </section>`
+          : ""
+      }
 
       ${
         alertTone
@@ -688,7 +702,7 @@
       Array.from(rootDoc.querySelectorAll(selector))
     );
 
-    return Array.from(new Set(candidates)).filter((node) => {
+    return candidates.filter((node) => {
       if (!(node instanceof Element)) return false;
       return (
         node.querySelector("[data-hook='review-body']") ||
@@ -700,21 +714,6 @@
 
   function extractReviewsFromDocument(rootDoc) {
     return collectReviewNodes(rootDoc).map((node, index) => extractReviewFromNode(node, index));
-  }
-
-  function deduplicateReviews(reviews) {
-    const seen = new Set();
-    const deduped = [];
-
-    for (const review of reviews) {
-      const key = review.review_id || `${review.review_title}-${review.review_date}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(review);
-      }
-    }
-
-    return deduped;
   }
 
   function getReviewListingBaseUrl(asin) {
@@ -815,7 +814,7 @@
     }
 
     return {
-      reviews: deduplicateReviews(collected),
+      reviews: collected,
       pagesFetched,
       blockedByCaptcha,
     };
@@ -843,7 +842,7 @@
     }
 
     return {
-      reviews: deduplicateReviews(combined).slice(0, CONFIG.maxReviews),
+      reviews: combined.slice(0, CONFIG.maxReviews),
       pagesFetched,
       blockedByCaptcha,
     };
@@ -858,10 +857,7 @@
     const visibleReviews = extractReviewsFromDocument(document);
     const paginationResult = await fetchPaginatedReviews(asin);
     const paginatedReviews = paginationResult.reviews;
-    const reviews = deduplicateReviews([...visibleReviews, ...paginatedReviews]).slice(
-      0,
-      CONFIG.maxReviews
-    );
+    const reviews = [...visibleReviews, ...paginatedReviews].slice(0, CONFIG.maxReviews);
 
     return {
       product_id: asin,
