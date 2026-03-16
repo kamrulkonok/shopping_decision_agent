@@ -382,22 +382,6 @@
 
     panel = document.createElement("section");
     panel.id = UI.panelId;
-    panel.style.position = "fixed";
-    panel.style.right = "16px";
-    panel.style.bottom = "16px";
-    panel.style.width = "360px";
-    panel.style.maxHeight = "70vh";
-    panel.style.overflow = "auto";
-    panel.style.zIndex = "2147483647";
-    panel.style.background = "#ffffff";
-    panel.style.color = "#111827";
-    panel.style.border = "1px solid #e5e7eb";
-    panel.style.borderRadius = "12px";
-    panel.style.padding = "12px";
-    panel.style.boxShadow = "0 12px 30px rgba(0,0,0,0.18)";
-    panel.style.fontFamily = "ui-sans-serif, -apple-system, Segoe UI, Helvetica, Arial, sans-serif";
-    panel.style.fontSize = "12px";
-    panel.style.lineHeight = "1.4";
 
     document.body.appendChild(panel);
     return panel;
@@ -443,101 +427,188 @@
   }
 
   function createListHtml(items) {
+    return createListHtmlWithLimit(items, 8);
+  }
+
+  function createListHtmlWithLimit(items, limit) {
     const safeItems = Array.isArray(items) ? items : [];
     if (safeItems.length === 0) {
       return "<li>None</li>";
     }
 
     return safeItems
-      .slice(0, 8)
+      .slice(0, limit)
       .map((item) => `<li>${escapeHtml(item)}</li>`)
       .join("");
   }
 
-  function getDecisionBadgeColor(decision) {
-    if (!decision) return "#e5e7eb";
-    if (decision.decision_state === "insufficient_data") return "#fef3c7";
-    if (decision.recommendation === "buy") return "#dcfce7";
-    if (decision.recommendation === "avoid") return "#fee2e2";
-    return "#e0f2fe";
+  function getConfidenceLabel(confidence) {
+    if (!Number.isFinite(confidence)) return "Unknown confidence";
+    if (confidence >= 0.75) return "High confidence";
+    if (confidence >= 0.55) return "Moderate confidence";
+    return "Low confidence";
+  }
+
+  function getDecisionToneClass(decision) {
+    if (!decision) return "consider";
+    if (decision.decision_state === "insufficient_data") return "insufficient_data";
+    if (decision.recommendation === "buy") return "buy";
+    if (decision.recommendation === "avoid") return "avoid";
+    return "consider";
+  }
+
+  function getAlertTone(risk, decisionState) {
+    if (decisionState === "insufficient_data") return "warn";
+    if (String(risk).toLowerCase() === "high") return "danger";
+    if (String(risk).toLowerCase() === "medium") return "warn";
+    return "";
+  }
+
+  function trimSummaryText(text) {
+    const normalized = String(text || "").replace(/\s+/g, " ").trim();
+    if (!normalized) return "No summary available.";
+    return normalized;
+  }
+
+  function renderLoadingPanel(productContext, source = "running analysis") {
+    if (!productContext) return;
+    const panel = upsertPanelRoot();
+
+    panel.innerHTML = `
+      <div class="asa-header">
+        <div>
+          <h3 class="asa-title">AI Decision Panel</h3>
+          <div class="asa-subtitle">${escapeHtml(
+            productContext.product_title || "Preparing product analysis"
+          )}</div>
+        </div>
+        <div class="asa-pill-row">
+          <span class="asa-pill">${escapeHtml(source)}</span>
+        </div>
+      </div>
+      <div class="asa-card asa-loading">
+        <div class="asa-skeleton" style="width:85%;"></div>
+        <div class="asa-skeleton" style="width:70%;"></div>
+        <div class="asa-skeleton" style="width:92%;"></div>
+      </div>
+    `;
   }
 
   function renderAnalysisPanel({ productContext, intelligence, decision, source, savedAt }) {
     if (!productContext || !intelligence) return;
 
     const panel = upsertPanelRoot();
-    const asin = productContext.product_id || "UNKNOWN-ASIN";
-    const title = productContext.product_title || "Unknown Product";
     const model = intelligence?.telemetry?.model || intelligence?.llm_model || "unknown";
     const llmUsed = intelligence?.telemetry?.llm_used;
-    const score = intelligence?.reliability_score ?? "n/a";
+    const reliabilityScore = intelligence?.reliability_score ?? "n/a";
     const risk = intelligence?.fake_review_risk || "unknown";
-    const summary = intelligence?.review_summary || "No summary available.";
+    const summary = trimSummaryText(intelligence?.review_summary);
     const isCollapsed = getPanelCollapsedState();
     const updatedAtLabel = formatTimestamp(savedAt || new Date());
-    const confidencePercent = decision ? `${Math.round((decision.confidence || 0) * 100)}%` : "n/a";
-    const decisionHeader = decision
-      ? String(decision.recommendation || "consider").toUpperCase().replace(/_/g, " ")
-      : "UNAVAILABLE";
+    const hasDecision = Boolean(decision && Number.isFinite(Number(decision.decision_score)));
+    const confidence = hasDecision ? Number(decision.confidence || 0) : NaN;
+    const confidencePercent = hasDecision ? `${Math.round(confidence * 100)}%` : "n/a";
+    const confidenceLabel = hasDecision ? getConfidenceLabel(confidence) : "Decision unavailable";
+    const recommendationLabel = hasDecision
+      ? String(decision.recommendation || "consider").toUpperCase()
+      : "PENDING";
+    const decisionTone = getDecisionToneClass(decision);
+    const decisionState = hasDecision
+      ? decision?.decision_state || "insufficient_data"
+      : "insufficient_data";
+    const alertTone = getAlertTone(risk, decisionState);
+    const hasFlags = Array.isArray(decision?.red_flags) && decision.red_flags.length > 0;
 
-    const decisionSection = decision
-      ? `
-      <div style="margin-bottom:10px; padding:8px; border:1px solid #d1d5db; border-radius:8px; background:${getDecisionBadgeColor(
-        decision
-      )};">
-        <div style="font-weight:600; margin-bottom:4px;">Decision: ${escapeHtml(decisionHeader)}</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-          <div><strong>Score:</strong> ${decision.decision_score ?? "n/a"}</div>
-          <div><strong>Confidence:</strong> ${confidencePercent}</div>
-          <div><strong>State:</strong> ${escapeHtml(decision.decision_state || "unknown")}</div>
-          <div><strong>Algo:</strong> ${escapeHtml(decision.decision_algo_version || "unknown")}</div>
-        </div>
-      </div>
-      <div style="margin-bottom:8px;"><strong>Top Reasons</strong><ul style="margin:6px 0 0 18px;">${createListHtml(
-        decision.top_reasons
-      )}</ul></div>
-      ${
-        Array.isArray(decision.red_flags) && decision.red_flags.length > 0
-          ? `<div style="margin-bottom:10px; padding:8px; border:1px solid #fca5a5; border-radius:8px; background:#fff1f2;"><strong style="color:#b91c1c;">Flags</strong><ul style="margin:6px 0 0 18px;">${createListHtml(
-              decision.red_flags
-            )}</ul></div>`
-          : ""
-      }
-    `
-      : `<div style="margin-bottom:10px; padding:8px; border:1px solid #fed7aa; border-radius:8px; background:#fff7ed;">Decision unavailable for this run.</div>`;
-
-    const summarySection = isCollapsed
+    const bodySection = isCollapsed
       ? ""
       : `
-      ${decisionSection}
-      <div style="margin-bottom:10px;"><strong>Summary:</strong><br>${escapeHtml(summary)}</div>
-      <div style="margin-bottom:8px;"><strong>Pros</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.pros)}</ul></div>
-      <div style="margin-bottom:4px;"><strong>Cons</strong><ul style="margin:6px 0 0 18px;">${createListHtml(intelligence?.cons)}</ul></div>
+      <section class="asa-card asa-verdict ${decisionTone}">
+        <p class="asa-verdict-label">Recommendation</p>
+        <div class="asa-verdict-main">${escapeHtml(recommendationLabel)}</div>
+        <div class="asa-verdict-sub">${escapeHtml(confidenceLabel)} (${confidencePercent})</div>
+      </section>
+
+      <section class="asa-grid-2">
+        <article class="asa-metric">
+          <p class="asa-metric-label">Decision Score</p>
+          <div class="asa-metric-value">${hasDecision ? decision.decision_score : "n/a"}</div>
+        </article>
+        <article class="asa-metric">
+          <p class="asa-metric-label">Reliability Score</p>
+          <div class="asa-metric-value">${reliabilityScore}</div>
+        </article>
+      </section>
+
+      ${
+        !hasDecision
+          ? `<section class="asa-alert warn">
+          <h4 class="asa-section-title">Decision Status</h4>
+          <div>Waiting for decision output from backend. Review intelligence is displayed meanwhile.</div>
+        </section>`
+          : ""
+      }
+
+      <section class="asa-pros-cons">
+        <article class="asa-card">
+          <h4 class="asa-section-title">Pros</h4>
+          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.pros, 3)}</ul>
+        </article>
+        <article class="asa-card">
+          <h4 class="asa-section-title">Cons</h4>
+          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 3)}</ul>
+        </article>
+      </section>
+
+      ${
+        alertTone
+          ? `<section class="asa-alert ${alertTone}">
+          <h4 class="asa-section-title">Risk Signal</h4>
+          <div>${escapeHtml(`Fake review risk: ${risk}`)}</div>
+          <div>${
+            decisionState === "insufficient_data"
+              ? "Evidence is limited. Recommendation is conservative by design."
+              : "Use caution and inspect review authenticity signals before purchase."
+          }</div>
+        </section>`
+          : ""
+      }
+
+      ${
+        hasFlags
+          ? `<section class="asa-alert danger"><h4 class="asa-section-title">Watch-outs</h4><ul class="asa-list">${createListHtmlWithLimit(
+              decision.red_flags,
+              3
+            )}</ul></section>`
+          : ""
+      }
+
+      <section class="asa-section">
+        <h4 class="asa-section-title">Summary</h4>
+        <div class="asa-summary">${escapeHtml(summary)}</div>
+      </section>
+
     `;
 
     panel.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-        <strong style="font-size:13px;">AI Review Intelligence</strong>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="display:inline-block; border:1px solid #d1d5db; border-radius:999px; padding:3px 8px; background:#f9fafb; color:#374151; font-size:11px;">
-            Updated: ${updatedAtLabel}
-          </span>
-          <button id="ai-shopping-agent-toggle-btn" style="border:1px solid #d1d5db; background:#f9fafb; color:#111827; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:12px;">${
-            isCollapsed ? "Expand" : "Minimize"
-          }</button>
-          <button id="ai-shopping-agent-rerun-btn" style="border:1px solid #d1d5db; background:#f9fafb; color:#111827; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:12px;">Re-run</button>
+      <header class="asa-header">
+        <div>
+          <h3 class="asa-title">AI Decision Panel</h3>
+          <div class="asa-subtitle">${escapeHtml(source || "analysis")}</div>
         </div>
+        <div class="asa-pill-row">
+          <span class="asa-pill">Updated ${updatedAtLabel}</span>
+          <span class="asa-pill">${llmUsed ? "LLM" : "Fallback"}</span>
+          <span class="asa-pill">Risk ${escapeHtml(risk)}</span>
+        </div>
+      </header>
+
+      ${bodySection}
+
+      <div class="asa-actions">
+        <button id="ai-shopping-agent-toggle-btn" class="asa-btn">${
+          isCollapsed ? "Expand" : "Minimize"
+        }</button>
       </div>
-      <div style="margin-bottom:8px; color:#374151;"><strong>ASIN:</strong> ${asin}</div>
-      <div style="margin-bottom:8px; color:#111827;"><strong>Title:</strong> ${escapeHtml(title)}</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
-        <div><strong>Score:</strong> ${score}</div>
-        <div><strong>Risk:</strong> ${risk}</div>
-        <div><strong>LLM:</strong> ${llmUsed ? "yes" : "no"}</div>
-        <div><strong>Model:</strong> ${escapeHtml(model)}</div>
-      </div>
-      <div style="margin-bottom:8px; color:#6b7280;"><strong>Source:</strong> ${escapeHtml(source)}</div>
-      ${summarySection}
     `;
 
     const toggleButton = panel.querySelector("#ai-shopping-agent-toggle-btn");
@@ -548,12 +619,6 @@
       });
     }
 
-    const rerunButton = panel.querySelector("#ai-shopping-agent-rerun-btn");
-    if (rerunButton) {
-      rerunButton.addEventListener("click", () => {
-        runAnalysisFlow({ forceResend: true, trigger: "rerun-button" });
-      });
-    }
   }
 
   function normalizeReviewDate(rawDateText) {
@@ -898,6 +963,9 @@
     isAnalysisRunning = true;
 
     try {
+      // Show immediate feedback so users perceive progress while extraction runs.
+      renderLoadingPanel({ product_title: "Preparing product analysis" }, "scanning product page");
+
       const productContext = await extractProductContext();
       latestProductContext = productContext;
 
@@ -910,8 +978,10 @@
       showProductBanner(productContext);
 
       const asin = productContext.product_id || "UNKNOWN-ASIN";
+      let renderedFromCache = false;
       const cached = await loadCachedAnalysisForAsin(asin);
       if (cached?.payload?.review_intelligence) {
+        renderedFromCache = true;
         renderAnalysisPanel({
           productContext,
           intelligence: cached.payload.review_intelligence,
@@ -919,6 +989,10 @@
           source: `cached (${cached.saved_at || "unknown time"})`,
           savedAt: cached.saved_at,
         });
+      }
+
+      if (!renderedFromCache) {
+        renderLoadingPanel(productContext, "analyzing reviews");
       }
 
       const data = await sendProductContextToBackend(productContext, {
@@ -961,7 +1035,7 @@
       const priceEl = getFirstElement(SELECTORS.price);
       const ratingEl = getFirstElement(SELECTORS.rating);
 
-      if (titleEl && priceEl && ratingEl) {
+      if (titleEl && (priceEl || ratingEl)) {
         clearInterval(timerId);
         await runAnalysisFlow({ trigger: "auto" });
         return;
