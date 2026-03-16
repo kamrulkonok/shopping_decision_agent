@@ -14,7 +14,7 @@
     maxReviewPages: 10,
     maxReviews: 100,
     reviewSorts: ["recent", "helpful"],
-    backendUrl: "http://localhost:3000/analyze-reviews",
+    backendUrl: "https://shopping-decision-agent-api.onrender.com/analyze-reviews",
     sessionPostedAsinsKey: "ai-shopping-agent-posted-asins",
     forceResendOnceKey: "ai-shopping-agent-force-resend-once",
     analysisCachePrefix: "ai-shopping-agent-analysis",

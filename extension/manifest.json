@@ -10,7 +10,7 @@
     "128": "icon128.png"
   },
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://*.amazon.com/*", "http://localhost:3000/*"],
+  "host_permissions": ["https://*.amazon.com/*", "https://shopping-decision-agent-api.onrender.com/*"],
   "background": {
     "service_worker": "background.js"
   },
