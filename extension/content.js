@@ -464,29 +464,23 @@
     return "";
   }
 
-  function formatCompactNumber(value) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return "n/a";
-    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(number);
-  }
-
-  function trimSummaryText(text, maxLength = 220) {
+  function trimSummaryText(text) {
     const normalized = String(text || "").replace(/\s+/g, " ").trim();
     if (!normalized) return "No summary available.";
-    if (normalized.length <= maxLength) return normalized;
-    return `${normalized.slice(0, maxLength - 1)}...`;
+    return normalized;
   }
 
   function renderLoadingPanel(productContext, source = "running analysis") {
     if (!productContext) return;
     const panel = upsertPanelRoot();
-    const title = productContext.product_title || "Analyzing product";
 
     panel.innerHTML = `
       <div class="asa-header">
         <div>
           <h3 class="asa-title">AI Decision Panel</h3>
-          <div class="asa-subtitle">${escapeHtml(title)}</div>
+          <div class="asa-subtitle">${escapeHtml(
+            productContext.product_title || "Preparing product analysis"
+          )}</div>
         </div>
         <div class="asa-pill-row">
           <span class="asa-pill">${escapeHtml(source)}</span>
@@ -504,7 +498,6 @@
     if (!productContext || !intelligence) return;
 
     const panel = upsertPanelRoot();
-    const title = productContext.product_title || "Unknown Product";
     const model = intelligence?.telemetry?.model || intelligence?.llm_model || "unknown";
     const llmUsed = intelligence?.telemetry?.llm_used;
     const reliabilityScore = intelligence?.reliability_score ?? "n/a";
@@ -512,17 +505,19 @@
     const summary = trimSummaryText(intelligence?.review_summary);
     const isCollapsed = getPanelCollapsedState();
     const updatedAtLabel = formatTimestamp(savedAt || new Date());
-    const confidence = Number(decision?.confidence || 0);
-    const confidencePercent = `${Math.round(confidence * 100)}%`;
-    const confidenceLabel = getConfidenceLabel(confidence);
-    const recommendationLabel = decision
+    const hasDecision = Boolean(decision && Number.isFinite(Number(decision.decision_score)));
+    const confidence = hasDecision ? Number(decision.confidence || 0) : NaN;
+    const confidencePercent = hasDecision ? `${Math.round(confidence * 100)}%` : "n/a";
+    const confidenceLabel = hasDecision ? getConfidenceLabel(confidence) : "Decision unavailable";
+    const recommendationLabel = hasDecision
       ? String(decision.recommendation || "consider").toUpperCase()
-      : "CONSIDER";
+      : "PENDING";
     const decisionTone = getDecisionToneClass(decision);
-    const decisionState = decision?.decision_state || "insufficient_data";
+    const decisionState = hasDecision
+      ? decision?.decision_state || "insufficient_data"
+      : "insufficient_data";
     const alertTone = getAlertTone(risk, decisionState);
     const hasFlags = Array.isArray(decision?.red_flags) && decision.red_flags.length > 0;
-    const totalRatings = formatCompactNumber(productContext.total_ratings);
 
     const bodySection = isCollapsed
       ? ""
@@ -536,13 +531,22 @@
       <section class="asa-grid-2">
         <article class="asa-metric">
           <p class="asa-metric-label">Decision Score</p>
-          <div class="asa-metric-value">${decision?.decision_score ?? "n/a"}</div>
+          <div class="asa-metric-value">${hasDecision ? decision.decision_score : "n/a"}</div>
         </article>
         <article class="asa-metric">
           <p class="asa-metric-label">Reliability Score</p>
           <div class="asa-metric-value">${reliabilityScore}</div>
         </article>
       </section>
+
+      ${
+        !hasDecision
+          ? `<section class="asa-alert warn">
+          <h4 class="asa-section-title">Decision Status</h4>
+          <div>Waiting for decision output from backend. Review intelligence is displayed meanwhile.</div>
+        </section>`
+          : ""
+      }
 
       <section class="asa-pros-cons">
         <article class="asa-card">
@@ -578,52 +582,18 @@
           : ""
       }
 
-      <section class="asa-grid-2">
-        <article class="asa-metric">
-          <p class="asa-metric-label">Price</p>
-          <div class="asa-metric-value">${productContext.price ?? "n/a"} ${escapeHtml(
-            productContext.currency || ""
-          )}</div>
-        </article>
-        <article class="asa-metric">
-          <p class="asa-metric-label">Rating</p>
-          <div class="asa-metric-value">${productContext.average_rating || "n/a"} (${totalRatings})</div>
-        </article>
-      </section>
-
       <section class="asa-section">
         <h4 class="asa-section-title">Summary</h4>
         <div class="asa-summary">${escapeHtml(summary)}</div>
       </section>
 
-      <details class="asa-details">
-        <summary>Details</summary>
-        <section class="asa-grid-2" style="margin-top:8px;">
-          <article class="asa-metric">
-            <p class="asa-metric-label">ASIN</p>
-            <div class="asa-metric-value">${escapeHtml(productContext.product_id || "UNKNOWN-ASIN")}</div>
-          </article>
-          <article class="asa-metric">
-            <p class="asa-metric-label">Source</p>
-            <div class="asa-metric-value">${escapeHtml(source)}</div>
-          </article>
-          <article class="asa-metric">
-            <p class="asa-metric-label">Model</p>
-            <div class="asa-metric-value">${escapeHtml(model)}</div>
-          </article>
-          <article class="asa-metric">
-            <p class="asa-metric-label">Algo</p>
-            <div class="asa-metric-value">${escapeHtml(decision?.decision_algo_version || "unknown")}</div>
-          </article>
-        </section>
-      </details>
     `;
 
     panel.innerHTML = `
       <header class="asa-header">
         <div>
           <h3 class="asa-title">AI Decision Panel</h3>
-          <div class="asa-subtitle">${escapeHtml(title)}</div>
+          <div class="asa-subtitle">${escapeHtml(source || "analysis")}</div>
         </div>
         <div class="asa-pill-row">
           <span class="asa-pill">Updated ${updatedAtLabel}</span>
@@ -638,9 +608,6 @@
         <button id="ai-shopping-agent-toggle-btn" class="asa-btn">${
           isCollapsed ? "Expand" : "Minimize"
         }</button>
-        <button id="ai-shopping-agent-rerun-btn" class="asa-btn" ${
-          isAnalysisRunning ? "disabled" : ""
-        }>${isAnalysisRunning ? "Running..." : "Re-run"}</button>
       </div>
     `;
 
@@ -652,12 +619,6 @@
       });
     }
 
-    const rerunButton = panel.querySelector("#ai-shopping-agent-rerun-btn");
-    if (rerunButton) {
-      rerunButton.addEventListener("click", () => {
-        runAnalysisFlow({ forceResend: true, trigger: "rerun-button" });
-      });
-    }
   }
 
   function normalizeReviewDate(rawDateText) {
@@ -1002,6 +963,9 @@
     isAnalysisRunning = true;
 
     try {
+      // Show immediate feedback so users perceive progress while extraction runs.
+      renderLoadingPanel({ product_title: "Preparing product analysis" }, "scanning product page");
+
       const productContext = await extractProductContext();
       latestProductContext = productContext;
 
@@ -1071,7 +1035,7 @@
       const priceEl = getFirstElement(SELECTORS.price);
       const ratingEl = getFirstElement(SELECTORS.rating);
 
-      if (titleEl && priceEl && ratingEl) {
+      if (titleEl && (priceEl || ratingEl)) {
         clearInterval(timerId);
         await runAnalysisFlow({ trigger: "auto" });
         return;

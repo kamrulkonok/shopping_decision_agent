@@ -1,21 +1,21 @@
 :root {
-	--asa-bg: #f8fafc;
+	--asa-bg: #fdfdfc;
 	--asa-card-bg: #ffffff;
-	--asa-ink: #14233a;
-	--asa-muted: #58677b;
-	--asa-border: #d7e0ea;
-	--asa-accent: #0e7490;
-	--asa-shadow: 0 18px 42px rgba(17, 34, 56, 0.2);
-	--asa-buy-bg: #e6f8ee;
-	--asa-buy-border: #8ed8ad;
-	--asa-consider-bg: #fff4db;
-	--asa-consider-border: #f2c87d;
-	--asa-avoid-bg: #ffe8e5;
-	--asa-avoid-border: #f2a39a;
-	--asa-warn-bg: #fff4db;
-	--asa-warn-border: #f2c87d;
-	--asa-danger-bg: #ffe8e5;
-	--asa-danger-border: #f2a39a;
+	--asa-ink: #0f253e;
+	--asa-muted: #5a6a7c;
+	--asa-border: #d5dde6;
+	--asa-accent: #146eb4;
+	--asa-shadow: 0 10px 24px rgba(15, 37, 62, 0.16);
+	--asa-buy-bg: #edf8ef;
+	--asa-buy-border: #85c88d;
+	--asa-consider-bg: #fff6e5;
+	--asa-consider-border: #f0cb8f;
+	--asa-avoid-bg: #fdeeed;
+	--asa-avoid-border: #e8a6a0;
+	--asa-warn-bg: #fff8ec;
+	--asa-warn-border: #edcf9c;
+	--asa-danger-bg: #fdeeed;
+	--asa-danger-border: #e8a6a0;
 }
 
 #ai-shopping-agent-analysis-panel {
@@ -26,19 +26,18 @@
 	width: min(390px, calc(100vw - 20px));
 	max-height: 78vh;
 	overflow: auto;
-	background:
-		radial-gradient(160% 80% at -10% 0%, #eef5ff 0%, transparent 62%),
-		radial-gradient(140% 65% at 120% 110%, #fff1df 0%, transparent 60%),
-		var(--asa-bg);
+	background: linear-gradient(180deg, #ffffff 0%, var(--asa-bg) 100%);
 	color: var(--asa-ink);
 	border: 1px solid var(--asa-border);
-	border-radius: 16px;
+	border-top: 4px solid #ff9900;
+	border-radius: 12px;
 	box-shadow: var(--asa-shadow);
 	padding: 14px;
-	font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+	font-family: "Amazon Ember", "Amazon Ember Display", Arial, "Helvetica Neue", Helvetica,
+		sans-serif;
 	font-size: 12px;
 	line-height: 1.45;
-	animation: asaFadeIn 220ms ease-out;
+	animation: asaFadeIn 120ms ease-out;
 }
 
 @keyframes asaFadeIn {
@@ -93,7 +92,7 @@
 
 .asa-card {
 	border: 1px solid var(--asa-border);
-	border-radius: 12px;
+	border-radius: 10px;
 	background: var(--asa-card-bg);
 	padding: 10px;
 	margin-bottom: 10px;
@@ -123,10 +122,10 @@
 
 .asa-verdict-main {
 	margin-top: 2px;
-	font-size: 20px;
+	font-size: 19px;
 	line-height: 1.1;
 	font-weight: 800;
-	letter-spacing: 0.3px;
+	letter-spacing: 0.15px;
 }
 
 .asa-verdict-sub {
@@ -215,34 +214,23 @@
 
 .asa-btn {
 	border: 1px solid var(--asa-border);
-	border-radius: 9px;
+	border-radius: 8px;
 	padding: 6px 10px;
 	cursor: pointer;
 	font-size: 12px;
 	background: var(--asa-card-bg);
 	color: var(--asa-ink);
-	transition: transform 120ms ease, box-shadow 120ms ease;
+	transition: background 120ms ease, border-color 120ms ease;
 }
 
 .asa-btn:hover:enabled {
-	transform: translateY(-1px);
-	box-shadow: 0 8px 18px rgba(20, 35, 58, 0.14);
+	background: #f4f7fa;
+	border-color: #b8c6d6;
 }
 
 .asa-btn:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
-}
-
-.asa-details {
-	border-top: 1px dashed var(--asa-border);
-	padding-top: 8px;
-}
-
-.asa-details > summary {
-	cursor: pointer;
-	color: var(--asa-accent);
-	font-size: 11px;
 }
 
 .asa-loading {
@@ -253,9 +241,9 @@
 .asa-skeleton {
 	height: 12px;
 	border-radius: 999px;
-	background: linear-gradient(90deg, #e9eef5 0%, #f6f8fb 50%, #e9eef5 100%);
+	background: linear-gradient(90deg, #eceff3 0%, #f8f9fb 50%, #eceff3 100%);
 	background-size: 240px 100%;
-	animation: asaShimmer 1.2s infinite linear;
+	animation: asaShimmer 1s infinite linear;
 }
 
 @keyframes asaShimmer {
@@ -279,5 +267,14 @@
 	.asa-grid-2,
 	.asa-pros-cons {
 		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#ai-shopping-agent-analysis-panel,
+	.asa-skeleton,
+	.asa-btn {
+		animation: none !important;
+		transition: none !important;
 	}
 }
