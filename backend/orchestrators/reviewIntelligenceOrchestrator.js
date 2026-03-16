@@ -7,7 +7,8 @@ const { runDecisionAgent } = require("../agents/decisionAgent");
 const { runDecisionGuardAgent } = require("../agents/decisionGuardAgent");
 
 function isDecisionLayerEnabled() {
-  return String(process.env.DECISION_LAYER_ENABLED || "false").toLowerCase() === "true";
+  const raw = String(process.env.DECISION_LAYER_ENABLED || "true").toLowerCase();
+  return raw !== "false";
 }
 
 function normalizeText(value) {
@@ -82,7 +83,10 @@ async function runReviewIntelligenceOrchestrator(productContext) {
     return {
       review_intelligence: guardedReviewIntelligence,
       decision: null,
-      decision_unavailable: null,
+      decision_unavailable: {
+        code: "DECISION_LAYER_DISABLED",
+        message: "Decision layer is disabled by configuration.",
+      },
     };
   }
 

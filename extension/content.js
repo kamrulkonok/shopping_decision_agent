@@ -501,7 +501,14 @@
     `;
   }
 
-  function renderAnalysisPanel({ productContext, intelligence, decision, source, savedAt }) {
+  function renderAnalysisPanel({
+    productContext,
+    intelligence,
+    decision,
+    decisionUnavailable,
+    source,
+    savedAt,
+  }) {
     if (!productContext || !intelligence) return;
 
     const panel = upsertPanelRoot();
@@ -523,6 +530,9 @@
     const decisionState = decision?.decision_state || "insufficient_data";
     const alertTone = getAlertTone(risk, decisionState);
     const hasFlags = Array.isArray(decision?.red_flags) && decision.red_flags.length > 0;
+    const decisionUnavailableMessage =
+      decisionUnavailable?.message ||
+      "Decision payload is missing from backend response. Re-run analysis after reloading the extension/backend.";
 
     const bodySection = isCollapsed
       ? ""
@@ -548,7 +558,7 @@
         !hasDecision
           ? `<section class="asa-alert warn">
           <h4 class="asa-section-title">Decision Status</h4>
-          <div>Waiting for decision output from backend. Review intelligence is displayed meanwhile.</div>
+          <div>${escapeHtml(decisionUnavailableMessage)}</div>
         </section>`
           : ""
       }
@@ -563,15 +573,6 @@
           <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 3)}</ul>
         </article>
       </section>
-
-      ${
-        !hasDecision
-          ? `<section class="asa-alert warn">
-          <h4 class="asa-section-title">Decision Status</h4>
-          <div>Decision payload is missing from backend response. Re-run analysis after reloading the extension/backend.</div>
-        </section>`
-          : ""
-      }
 
       ${
         alertTone
@@ -982,6 +983,7 @@
           productContext,
           intelligence: cached.payload.review_intelligence,
           decision: cached.payload.decision || null,
+          decisionUnavailable: cached.payload.decision_unavailable || null,
           source: `cached (${cached.saved_at || "unknown time"})`,
           savedAt: cached.saved_at,
         });
@@ -1002,6 +1004,7 @@
           productContext,
           intelligence,
           decision,
+          decisionUnavailable: data?.decision_unavailable || null,
           source: "fresh backend",
           savedAt: new Date().toISOString(),
         });
