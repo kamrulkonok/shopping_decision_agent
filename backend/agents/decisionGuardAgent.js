@@ -49,6 +49,11 @@ function runDecisionGuardAgent(payload) {
     if (recommendation === "buy") recommendation = "consider";
   }
 
+  // Prevent hard-avoid recommendations when confidence is too low.
+  if (recommendation === "avoid" && confidence < 0.35) {
+    recommendation = "consider";
+  }
+
   return {
     recommendation,
     decision_score: clamp(Math.round(Number(payload?.decision_score ?? 0)), 0, 100),
