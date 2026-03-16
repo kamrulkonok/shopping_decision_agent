@@ -12,13 +12,13 @@
     maxAttempts: 20,
     intervalMs: 500,
     maxReviewPages: 10,
-    maxReviews: 250,
+    maxReviews: 100,
     reviewSorts: ["recent", "helpful"],
     backendUrl: "http://localhost:3000/analyze-reviews",
     sessionPostedAsinsKey: "ai-shopping-agent-posted-asins",
     forceResendOnceKey: "ai-shopping-agent-force-resend-once",
     analysisCachePrefix: "ai-shopping-agent-analysis",
-    analysisCacheVersion: 2,
+    analysisCacheVersion: 3,
   };
 
   const UI = {
@@ -343,6 +343,13 @@
           return;
         }
 
+        // Old cache entries may contain only review_intelligence (no decision payload).
+        // Discard them so the panel reflects the current backend contract.
+        if (!cached?.payload?.decision) {
+          resolve(null);
+          return;
+        }
+
         resolve(cached);
       });
     });
@@ -512,14 +519,15 @@
     const summary = trimSummaryText(intelligence?.review_summary);
     const isCollapsed = getPanelCollapsedState();
     const updatedAtLabel = formatTimestamp(savedAt || new Date());
-    const confidence = Number(decision?.confidence || 0);
-    const confidencePercent = `${Math.round(confidence * 100)}%`;
-    const confidenceLabel = getConfidenceLabel(confidence);
-    const recommendationLabel = decision
+    const hasDecision = Boolean(decision && Number.isFinite(Number(decision.decision_score)));
+    const confidence = hasDecision ? Number(decision.confidence || 0) : NaN;
+    const confidencePercent = hasDecision ? `${Math.round(confidence * 100)}%` : "n/a";
+    const confidenceLabel = hasDecision ? getConfidenceLabel(confidence) : "Decision unavailable";
+    const recommendationLabel = hasDecision
       ? String(decision.recommendation || "consider").toUpperCase()
-      : "CONSIDER";
+      : "PENDING";
     const decisionTone = getDecisionToneClass(decision);
-    const decisionState = decision?.decision_state || "insufficient_data";
+    const decisionState = hasDecision ? decision?.decision_state || "insufficient_data" : "insufficient_data";
     const alertTone = getAlertTone(risk, decisionState);
     const hasFlags = Array.isArray(decision?.red_flags) && decision.red_flags.length > 0;
     const totalRatings = formatCompactNumber(productContext.total_ratings);
@@ -536,7 +544,7 @@
       <section class="asa-grid-2">
         <article class="asa-metric">
           <p class="asa-metric-label">Decision Score</p>
-          <div class="asa-metric-value">${decision?.decision_score ?? "n/a"}</div>
+          <div class="asa-metric-value">${hasDecision ? decision.decision_score : "n/a"}</div>
         </article>
         <article class="asa-metric">
           <p class="asa-metric-label">Reliability Score</p>
@@ -554,6 +562,15 @@
           <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 3)}</ul>
         </article>
       </section>
+
+      ${
+        !hasDecision
+          ? `<section class="asa-alert warn">
+          <h4 class="asa-section-title">Decision Status</h4>
+          <div>Decision payload is missing from backend response. Re-run analysis after reloading the extension/backend.</div>
+        </section>`
+          : ""
+      }
 
       ${
         alertTone
@@ -727,7 +744,7 @@
       Array.from(rootDoc.querySelectorAll(selector))
     );
 
-    return Array.from(new Set(candidates)).filter((node) => {
+    return candidates.filter((node) => {
       if (!(node instanceof Element)) return false;
       return (
         node.querySelector("[data-hook='review-body']") ||
@@ -739,21 +756,6 @@
 
   function extractReviewsFromDocument(rootDoc) {
     return collectReviewNodes(rootDoc).map((node, index) => extractReviewFromNode(node, index));
-  }
-
-  function deduplicateReviews(reviews) {
-    const seen = new Set();
-    const deduped = [];
-
-    for (const review of reviews) {
-      const key = review.review_id || `${review.review_title}-${review.review_date}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(review);
-      }
-    }
-
-    return deduped;
   }
 
   function getReviewListingBaseUrl(asin) {
@@ -854,7 +856,7 @@
     }
 
     return {
-      reviews: deduplicateReviews(collected),
+      reviews: collected,
       pagesFetched,
       blockedByCaptcha,
     };
@@ -882,7 +884,7 @@
     }
 
     return {
-      reviews: deduplicateReviews(combined).slice(0, CONFIG.maxReviews),
+      reviews: combined.slice(0, CONFIG.maxReviews),
       pagesFetched,
       blockedByCaptcha,
     };
@@ -897,10 +899,7 @@
     const visibleReviews = extractReviewsFromDocument(document);
     const paginationResult = await fetchPaginatedReviews(asin);
     const paginatedReviews = paginationResult.reviews;
-    const reviews = deduplicateReviews([...visibleReviews, ...paginatedReviews]).slice(
-      0,
-      CONFIG.maxReviews
-    );
+    const reviews = [...visibleReviews, ...paginatedReviews].slice(0, CONFIG.maxReviews);
 
     return {
       product_id: asin,
