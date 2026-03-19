@@ -16,22 +16,6 @@ Purchase Intelligence Brief combines a Chrome browser extension with a sophistic
 - **Performance Optimization**: Caches analysis results per product and handles large review sets with adaptive payload management.
 - **Professional UI**: Clean, responsive panel that displays insights without disrupting your shopping experience.
 
-## How It Works
-
-The system works in three stages:
-
-1. **Extraction**: The extension detects when you visit an Amazon product page and extracts:
-   - Product information (title, price, rating, features)
-   - Customer reviews (up to 150 reviews)
-
-2. **Analysis Pipeline** (Backend):
-   - **Review Intelligence Agent**: Uses Mistral LLM to extract pros, cons, and summary.
-   - **Reliability Scoring**: Calculates a review reliability score based on verification status, helpful votes, and review consistency.
-   - **Quality Guard**: Validates and normalizes the intelligence payload.
-   - **Decision Agent**: Generates a purchase recommendation with confidence metrics and red flags.
-
-3. **Display**: Results are cached locally and displayed in a professional panel on the right side of the page.
-
 ## Getting Started
 
 ### Prerequisites
@@ -90,8 +74,6 @@ The backend server will start on `http://localhost:3000`.
 3. The extension will automatically analyze reviews and display insights
 
 ## Scoring & Recommendation Logic
-
-The recommendation engine employs a multi-layered scoring methodology that synthesizes review quality, product value, and decision confidence. Each component is normalized to a 0-100 scale, with confidence represented as a decimal between 0 and 1. This design ensures recommendations are both data-driven and transparent.
 
 ### Overview of the Scoring Pipeline
 
@@ -349,24 +331,6 @@ else:
 
 ---
 
-### 5. Red Flags and Positive Signals
-
-The system automatically identifies patterns that inform the user of potential concerns or strengths.
-
-#### Red Flags (Displayed as Warnings)
-- **Captcha Encountered**: Review crawling encountered anti-bot friction, reducing data credibility
-- **Cons Volume Notable**: Product has meaningful drawbacks (cons exceed pros + consistency)
-- **Insufficient Evidence**: Too few high-quality reviews to make a confident decision
-
-#### Top Reasons (Displayed as Strengths)
-- **Strong Rating**: Average rating ≥ 4.0 (≥80 points)
-- **Good Review Reliability**: Reliability score ≥ 70 with strong verification
-- **Rich Feature Set**: Feature score ≥ 60 relative to category
-- **Positive Pro/Con Balance**: Pros materially outweigh cons
-- **Strong Value Signal**: Value score ≥ 65
-
----
-
 ### Worked Example: Smartphone Purchase
 
 **Product Details:**
@@ -456,5 +420,4 @@ Display:
 ├─ Decision Score: 77/100
 ├─ Confidence: 98%
 ├─ Strengths: Strong rating, good reliability, positive pros/cons balance
-└─ Concerns: None
 ```
