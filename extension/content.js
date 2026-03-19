@@ -581,7 +581,7 @@
     panel.innerHTML = `
       <div class="asa-header">
         <div>
-          <h3 class="asa-title">AI Decision Panel</h3>
+          <h3 class="asa-title">Purchase Intelligence Brief</h3>
           <div class="asa-subtitle">${escapeHtml(
             productContext.product_title || "Preparing product analysis"
           )}</div>
@@ -697,8 +697,10 @@
     panel.innerHTML = `
       <header class="asa-header">
         <div>
-          <h3 class="asa-title">AI Decision Panel</h3>
-          <div class="asa-subtitle">${escapeHtml(source || "analysis")}</div>
+          <h3 class="asa-title">Purchase Intelligence Brief</h3>
+          <div class="asa-subtitle">${escapeHtml(
+            productContext.product_title || "Product analysis"
+          )}</div>
         </div>
         <div class="asa-pill-row">
           <span class="asa-pill">Updated ${updatedAtLabel}</span>
@@ -1123,7 +1125,7 @@
           intelligence,
           decision,
           decisionUnavailable: data?.decision_unavailable || null,
-          source: "fresh backend",
+          source: "live",
           savedAt: new Date().toISOString(),
         });
 

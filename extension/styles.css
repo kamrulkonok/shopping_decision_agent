@@ -1,43 +1,45 @@
 :root {
-	--asa-bg: #fdfdfc;
+	--asa-bg: #f5f7fa;
 	--asa-card-bg: #ffffff;
-	--asa-ink: #0f253e;
-	--asa-muted: #5a6a7c;
-	--asa-border: #d5dde6;
-	--asa-accent: #146eb4;
-	--asa-shadow: 0 10px 24px rgba(15, 37, 62, 0.16);
-	--asa-buy-bg: #edf8ef;
-	--asa-buy-border: #85c88d;
-	--asa-consider-bg: #fff6e5;
-	--asa-consider-border: #f0cb8f;
-	--asa-avoid-bg: #fdeeed;
-	--asa-avoid-border: #e8a6a0;
-	--asa-warn-bg: #fff8ec;
-	--asa-warn-border: #edcf9c;
-	--asa-danger-bg: #fdeeed;
-	--asa-danger-border: #e8a6a0;
+	--asa-ink: #132235;
+	--asa-muted: #5b6d80;
+	--asa-border: #d7e1eb;
+	--asa-accent: #0b6fa4;
+	--asa-shadow: 0 16px 40px rgba(14, 36, 58, 0.2);
+	--asa-buy-bg: #ecf8f1;
+	--asa-buy-border: #7cc59d;
+	--asa-consider-bg: #fff8e9;
+	--asa-consider-border: #e8c37e;
+	--asa-avoid-bg: #fdeeee;
+	--asa-avoid-border: #e2a2a2;
+	--asa-warn-bg: #fff9ec;
+	--asa-warn-border: #e5c98e;
+	--asa-danger-bg: #fdeeee;
+	--asa-danger-border: #e2a2a2;
 }
 
 #ai-shopping-agent-analysis-panel {
 	position: fixed;
-	right: 16px;
-	bottom: 16px;
+	right: 18px;
+	bottom: 18px;
 	z-index: 2147483647;
-	width: min(390px, calc(100vw - 20px));
+	width: min(410px, calc(100vw - 22px));
 	max-height: 78vh;
 	overflow: auto;
-	background: linear-gradient(180deg, #ffffff 0%, var(--asa-bg) 100%);
+	background:
+		radial-gradient(circle at top right, rgba(11, 111, 164, 0.12), transparent 42%),
+		linear-gradient(180deg, #ffffff 0%, var(--asa-bg) 100%);
 	color: var(--asa-ink);
 	border: 1px solid var(--asa-border);
-	border-top: 4px solid #ff9900;
-	border-radius: 12px;
+	border-top: 4px solid #f2aa3a;
+	border-radius: 16px;
 	box-shadow: var(--asa-shadow);
-	padding: 14px;
+	padding: 16px;
 	font-family: "Amazon Ember", "Amazon Ember Display", Arial, "Helvetica Neue", Helvetica,
 		sans-serif;
 	font-size: 12px;
-	line-height: 1.45;
-	animation: asaFadeIn 120ms ease-out;
+	line-height: 1.5;
+	animation: asaFadeIn 160ms ease-out;
 }
 
 @keyframes asaFadeIn {
@@ -55,20 +57,20 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
-	gap: 10px;
-	margin-bottom: 10px;
+	gap: 12px;
+	margin-bottom: 12px;
 }
 
 .asa-title {
 	margin: 0;
-	font-size: 14px;
+	font-size: 15px;
 	line-height: 1.2;
-	font-weight: 700;
-	letter-spacing: 0.2px;
+	font-weight: 800;
+	letter-spacing: 0.15px;
 }
 
 .asa-subtitle {
-	margin-top: 2px;
+	margin-top: 3px;
 	font-size: 11px;
 	color: var(--asa-muted);
 }
@@ -82,20 +84,21 @@
 
 .asa-pill {
 	border: 1px solid var(--asa-border);
-	background: var(--asa-card-bg);
-	color: var(--asa-muted);
+	background: #f7fafc;
+	color: #3f566f;
 	border-radius: 999px;
-	padding: 3px 8px;
+	padding: 4px 9px;
 	font-size: 10px;
+	font-weight: 600;
 	white-space: nowrap;
 }
 
 .asa-card {
 	border: 1px solid var(--asa-border);
-	border-radius: 10px;
+	border-radius: 12px;
 	background: var(--asa-card-bg);
-	padding: 10px;
-	margin-bottom: 10px;
+	padding: 11px;
+	margin-bottom: 11px;
 }
 
 .asa-verdict.buy {
@@ -122,7 +125,7 @@
 
 .asa-verdict-main {
 	margin-top: 2px;
-	font-size: 19px;
+	font-size: 20px;
 	line-height: 1.1;
 	font-weight: 800;
 	letter-spacing: 0.15px;
@@ -137,37 +140,40 @@
 .asa-grid-2 {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px;
-	margin-bottom: 10px;
+	gap: 10px;
+	margin-bottom: 11px;
 }
 
 .asa-metric {
 	border: 1px solid var(--asa-border);
-	border-radius: 10px;
+	border-radius: 12px;
 	background: var(--asa-card-bg);
-	padding: 8px;
+	padding: 10px;
 }
 
 .asa-metric-label {
 	margin: 0;
 	font-size: 10px;
 	color: var(--asa-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.35px;
 }
 
 .asa-metric-value {
 	margin-top: 3px;
-	font-size: 14px;
-	font-weight: 700;
+	font-size: 15px;
+	font-weight: 800;
 }
 
 .asa-section {
-	margin-bottom: 10px;
+	margin-bottom: 11px;
 }
 
 .asa-section-title {
 	margin: 0 0 6px;
 	font-size: 12px;
 	font-weight: 700;
+	letter-spacing: 0.2px;
 }
 
 .asa-list {
@@ -176,20 +182,20 @@
 }
 
 .asa-list li {
-	margin: 3px 0;
+	margin: 4px 0;
 }
 
 .asa-pros-cons {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px;
-	margin-bottom: 10px;
+	gap: 10px;
+	margin-bottom: 11px;
 }
 
 .asa-alert {
-	border-radius: 10px;
-	padding: 9px;
-	margin-bottom: 10px;
+	border-radius: 12px;
+	padding: 10px;
+	margin-bottom: 11px;
 	border: 1px solid var(--asa-border);
 }
 
@@ -205,6 +211,7 @@
 
 .asa-summary {
 	color: #24364e;
+	line-height: 1.55;
 }
 
 .asa-actions {
@@ -214,10 +221,11 @@
 
 .asa-btn {
 	border: 1px solid var(--asa-border);
-	border-radius: 8px;
-	padding: 6px 10px;
+	border-radius: 10px;
+	padding: 7px 11px;
 	cursor: pointer;
 	font-size: 12px;
+	font-weight: 700;
 	background: var(--asa-card-bg);
 	color: var(--asa-ink);
 	transition: background 120ms ease, border-color 120ms ease;
