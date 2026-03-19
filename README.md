@@ -1,7 +1,5 @@
 # Purchase Intelligence Brief
 
-An intelligent Chrome extension + Node.js backend system that analyzes Amazon product reviews and provides data-driven purchase recommendations powered by AI.
-
 ## Overview
 
 Purchase Intelligence Brief combines a Chrome browser extension with a sophisticated backend API to intelligently summarize product reviews, assess review reliability, and deliver clear purchasing recommendations. The system extracts product information and customer reviews from Amazon pages, processes them through an AI-driven analysis pipeline, and displays actionable insights directly in your browser.
