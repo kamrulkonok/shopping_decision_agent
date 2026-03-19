@@ -12,7 +12,7 @@
     maxAttempts: 20,
     intervalMs: 500,
     maxReviewPages: 10,
-    maxReviews: 100,
+    maxReviews: 150,
     reviewSorts: ["recent", "helpful"],
     backendUrl: "https://shopping-decision-agent-api.onrender.com/analyze-reviews",
     sessionPostedAsinsKey: "ai-shopping-agent-posted-asins",
@@ -313,6 +313,71 @@
     return Boolean(chrome?.storage?.local);
   }
 
+  function trimText(value, maxLen) {
+    const normalized = String(value || "").replace(/\s+/g, " ").trim();
+    if (!maxLen || normalized.length <= maxLen) return normalized;
+    return normalized.slice(0, maxLen);
+  }
+
+  function compactProductContextForBackend(productContext, maxReviews) {
+    const reviews = Array.isArray(productContext?.reviews) ? productContext.reviews : [];
+    const compactReviews = reviews.slice(0, maxReviews).map((review, index) => ({
+      review_id: trimText(review?.review_id || `review-${index + 1}`, 80),
+      review_title: trimText(review?.review_title, 180),
+      review_text: trimText(review?.review_text, 700),
+      review_rating: Number.isFinite(Number(review?.review_rating))
+        ? Number(review.review_rating)
+        : 0,
+      review_date: trimText(review?.review_date || "1970-01-01", 20),
+      verified_purchase: Boolean(review?.verified_purchase),
+      helpful_votes: Number.isFinite(Number(review?.helpful_votes))
+        ? Number(review.helpful_votes)
+        : 0,
+    }));
+
+    return {
+      ...productContext,
+      product_title: trimText(productContext?.product_title, 220),
+      brand: trimText(productContext?.brand, 120),
+      category: trimText(productContext?.category, 120),
+      description: trimText(productContext?.description, 1200),
+      features: (Array.isArray(productContext?.features) ? productContext.features : [])
+        .map((item) => trimText(item, 180))
+        .filter(Boolean)
+        .slice(0, 20),
+      reviews: compactReviews,
+    };
+  }
+
+  async function postToBackendViaBackground(url, payload) {
+    return new Promise((resolve) => {
+      if (!chrome?.runtime?.sendMessage) {
+        resolve({ ok: false, error: "Runtime messaging is unavailable." });
+        return;
+      }
+
+      chrome.runtime.sendMessage(
+        {
+          type: "AI_SHOPPING_AGENT_BACKEND_REQUEST",
+          url,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+        (response) => {
+          if (chrome.runtime?.lastError) {
+            resolve({ ok: false, error: chrome.runtime.lastError.message });
+            return;
+          }
+
+          resolve(response || { ok: false, error: "No response from background." });
+        }
+      );
+    });
+  }
+
   function getAnalysisCacheKey(asin) {
     return `${CONFIG.analysisCachePrefix}:${asin}`;
   }
@@ -557,11 +622,11 @@
       <section class="asa-pros-cons">
         <article class="asa-card">
           <h4 class="asa-section-title">Pros</h4>
-          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.pros, 3)}</ul>
+          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.pros, 5)}</ul>
         </article>
         <article class="asa-card">
           <h4 class="asa-section-title">Cons</h4>
-          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 3)}</ul>
+          <ul class="asa-list">${createListHtmlWithLimit(intelligence?.cons, 5)}</ul>
         </article>
       </section>
 
@@ -889,22 +954,66 @@
         log(`Force resend enabled for ASIN ${asin}; bypassing duplicate-session guard.`);
       }
 
-      log("Sending product context to backend...");
+      log("Sending product context to backend via extension service worker...");
 
-      const response = await fetch(CONFIG.backendUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(productContext),
-      });
+      const reviewRetryPlan = [150, 120, 90, 70, 50, 35, 25];
+      let data = null;
+      let lastRelayResult = null;
 
-      if (!response.ok) {
-        errorLog("Backend responded with status", response.status);
-        return null;
+      for (const maxReviews of reviewRetryPlan) {
+        const payload = compactProductContextForBackend(productContext, maxReviews);
+        lastRelayResult = await postToBackendViaBackground(CONFIG.backendUrl, payload);
+
+        if (lastRelayResult?.ok && lastRelayResult?.data) {
+          data = lastRelayResult.data;
+          if (maxReviews !== reviewRetryPlan[0]) {
+            warn(`Backend accepted compact payload with ${maxReviews} reviews.`);
+          }
+          break;
+        }
+
+        if (lastRelayResult?.ok && lastRelayResult?.rawText) {
+          try {
+            data = JSON.parse(lastRelayResult.rawText);
+            if (data) break;
+          } catch {
+            // Continue to retry logic.
+          }
+        }
+
+        if (lastRelayResult?.status === 413) {
+          warn(`Payload too large (413). Retrying with fewer reviews (${maxReviews}).`);
+          continue;
+        }
+
+        // Non-413 relay issue: stop retry loop and try direct fallback once.
+        break;
       }
 
-      const data = await response.json();
+      // Fallback to direct fetch if background relay fails unexpectedly.
+      if (!data) {
+        warn(
+          "Background relay failed, attempting direct fetch fallback:",
+          lastRelayResult?.error || lastRelayResult?.status
+        );
+
+        const fallbackPayload = compactProductContextForBackend(productContext, 35);
+        const response = await fetch(CONFIG.backendUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(fallbackPayload),
+        });
+
+        if (!response.ok) {
+          errorLog("Backend responded with status", response.status);
+          return null;
+        }
+
+        data = await response.json();
+      }
+
       markAsinPostedInSession(asin);
       log("Backend response:", data);
 

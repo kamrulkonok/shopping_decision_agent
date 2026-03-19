@@ -18,6 +18,12 @@ function normalizeText(value) {
     .trim();
 }
 
+function normalizeReviewId(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return normalized.replace(/^customer_review-/i, "").toLowerCase();
+}
+
 function preprocessReviews(rawReviews) {
   const inputReviews = Array.isArray(rawReviews) ? rawReviews : [];
 
@@ -26,18 +32,22 @@ function preprocessReviews(rawReviews) {
       ...review,
       review_title: normalizeText(review.review_title),
       review_text: normalizeText(review.review_text),
+      review_id: normalizeReviewId(review.review_id),
     }))
-    .filter((review) => review.review_text.length >= 10 || review.review_title.length >= 6);
+    .filter((review) => {
+      const hasAnyText = review.review_text.length > 0 || review.review_title.length > 0;
+      const hasValidRating = Number.isFinite(Number(review.review_rating));
+      return hasAnyText || hasValidRating;
+    });
 
   const seen = new Set();
   const deduped = [];
 
   for (const review of usable) {
-    const key =
-      review.review_id ||
-      `${review.review_title}-${review.review_text}-${review.review_rating}-${review.review_date}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (review.review_id) {
+      if (seen.has(review.review_id)) continue;
+      seen.add(review.review_id);
+    }
     deduped.push(review);
   }
 

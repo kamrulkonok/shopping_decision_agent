@@ -82,8 +82,13 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
   );
 
   const negativeRatio = totalClusterCount > 0 ? negativeClusterCount / totalClusterCount : 0;
+  const notableConsSignal =
+    usableReviews >= 15 &&
+    consCount >= 5 &&
+    consCount >= prosCount + 2 &&
+    negativeRatio >= 0.5;
   const adjustmentPenalty = clamp(
-    (consCount >= 5 ? 6 : 0) +
+    (notableConsSignal ? 6 : 0) +
       (negativeRatio >= 0.35 ? 8 : 0) +
       (blockedByCaptcha ? 10 : 0)
   );
@@ -131,7 +136,9 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
 
   const redFlags = [];
   if (blockedByCaptcha) redFlags.push("Review crawling encountered anti-bot/captcha friction.");
-  if (consCount >= 5) redFlags.push("Cons volume is notable.");
+  if (notableConsSignal) {
+    redFlags.push("Cons volume is notable and outweighs positive signals.");
+  }
   if (decisionState === "insufficient_data") redFlags.push("Not enough high-quality review evidence.");
 
   return {

@@ -2,8 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const nunjucks = require("nunjucks");
 
-const DEFAULT_PROVIDER = (process.env.LLM_PROVIDER || "auto").toLowerCase();
-const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const DEFAULT_MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-small-latest";
 
 const SYSTEM_PROMPT_PATH = path.resolve(
@@ -52,17 +50,17 @@ function buildSystemPrompt() {
 function buildFallbackReviewIntelligence(reviews) {
   const validReviews = Array.isArray(reviews) ? reviews : [];
   const positives = validReviews.filter((review) => Number(review.review_rating || 0) >= 4);
-  const negatives = validReviews.filter((review) => Number(review.review_rating || 0) <= 2);
+  const negatives = validReviews.filter((review) => Number(review.review_rating || 0) <= 3);
 
   const pros = positives
     .map((review) => review.review_title || review.review_text)
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 5);
 
   const cons = negatives
     .map((review) => review.review_title || review.review_text)
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 5);
 
   const average =
     validReviews.length > 0
@@ -94,7 +92,7 @@ function buildFallbackReviewIntelligence(reviews) {
 }
 
 function buildPromptPayload(productContext, reviews) {
-  const compactReviews = (reviews || []).slice(0, 80).map((review) => ({
+  const compactReviews = (reviews || []).slice(0, 150).map((review) => ({
     rating: review.review_rating,
     title: String(review.review_title || "").slice(0, 180),
     text: String(review.review_text || "").slice(0, 700),
@@ -113,52 +111,6 @@ function buildPromptPayload(productContext, reviews) {
       currency: productContext.currency,
     },
     reviews: compactReviews,
-  };
-}
-
-async function callOpenAI(promptPayload) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
-  }
-
-  const userPrompt = buildUserPrompt(promptPayload);
-  const systemPrompt = buildSystemPrompt();
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: DEFAULT_OPENAI_MODEL,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI request failed: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("OpenAI returned empty content.");
-  }
-
-  const parsed = JSON.parse(content);
-  return {
-    ...parsed,
-    llm_used: true,
-    llm_model: DEFAULT_OPENAI_MODEL,
   };
 }
 
@@ -231,36 +183,18 @@ async function callMistral(promptPayload) {
   };
 }
 
-function getProviderOrder() {
-  if (DEFAULT_PROVIDER === "mistral") return ["mistral"];
-  if (DEFAULT_PROVIDER === "openai") return ["openai"];
-
-  // auto mode: prefer Mistral first, then OpenAI.
-  return ["mistral", "openai"];
-}
-
 async function runReviewIntelligenceLLMAgent({ productContext, reviews }) {
   const fallback = buildFallbackReviewIntelligence(reviews);
   const promptPayload = buildPromptPayload(productContext, reviews);
-  const providerErrors = [];
-
-  const callers = {
-    mistral: callMistral,
-    openai: callOpenAI,
-  };
-
-  for (const provider of getProviderOrder()) {
-    try {
-      return await callers[provider](promptPayload);
-    } catch (error) {
-      providerErrors.push(`${provider}: ${error.message}`);
-    }
+  try {
+    return await callMistral(promptPayload);
+  } catch (error) {
+    return {
+      ...fallback,
+      llm_error: `LLM error: mistral: ${error.message}`,
+    };
   }
 
-  return {
-    ...fallback,
-    llm_error: `LLM error: ${providerErrors.join(" | ")}`,
-  };
 }
 
 module.exports = {
