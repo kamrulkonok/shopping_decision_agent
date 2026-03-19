@@ -3,6 +3,11 @@ const path = require("path");
 const nunjucks = require("nunjucks");
 
 const DEFAULT_MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-small-latest";
+const PIVOT_LANGUAGE = (process.env.PIVOT_LANGUAGE || "en").toLowerCase();
+const MULTILINGUAL_NORMALIZATION_ENABLED =
+  String(process.env.MULTILINGUAL_NORMALIZATION_ENABLED || "true").toLowerCase() !== "false";
+const TRANSLATE_TO_PIVOT_BEFORE_CLUSTERING =
+  String(process.env.TRANSLATE_TO_PIVOT_BEFORE_CLUSTERING || "true").toLowerCase() !== "false";
 
 const SYSTEM_PROMPT_PATH = path.resolve(
   __dirname,
@@ -91,16 +96,100 @@ function buildFallbackReviewIntelligence(reviews) {
   };
 }
 
+function normalizeFreeText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function detectLanguageHeuristic(value) {
+  const text = normalizeFreeText(value);
+  if (!text) return "unknown";
+
+  if (/[\u3040-\u30FF]/.test(text)) return "ja"; // Hiragana/Katakana
+  if (/[\u4E00-\u9FFF]/.test(text)) return "zh"; // CJK Unified Ideographs
+  if (/[\uAC00-\uD7AF]/.test(text)) return "ko"; // Hangul
+  if (/[\u0400-\u04FF]/.test(text)) return "ru"; // Cyrillic
+  if (/[\u0600-\u06FF]/.test(text)) return "ar"; // Arabic
+
+  const lowered = text.toLowerCase();
+  const spanishHints = [" el ", " la ", " de ", " y ", " muy ", " bateria", " camara"];
+  const frenchHints = [" le ", " la ", " de ", " et ", " tres ", " bon", " mauvaise"];
+  const germanHints = [" der ", " die ", " und ", " ist ", " sehr ", " nicht"];
+
+  const hasAccent = /[à-ÿ]/i.test(lowered);
+
+  if (spanishHints.some((token) => lowered.includes(token)) || /[ñáéíóúü]/i.test(lowered)) {
+    return "es";
+  }
+  if (frenchHints.some((token) => lowered.includes(token))) {
+    return "fr";
+  }
+  if (germanHints.some((token) => lowered.includes(token)) || /[äöüß]/i.test(lowered)) {
+    return "de";
+  }
+  if (hasAccent) return "unknown";
+
+  return "en";
+}
+
+function buildLanguageDistribution(reviews) {
+  const distribution = {};
+  for (const review of reviews) {
+    const lang = review.detected_language || "unknown";
+    distribution[lang] = (distribution[lang] || 0) + 1;
+  }
+  return distribution;
+}
+
+function normalizeReviewsForClustering(reviews) {
+  const sourceReviews = Array.isArray(reviews) ? reviews : [];
+  const normalizedReviews = sourceReviews.map((review) => {
+    const title = normalizeFreeText(review.review_title);
+    const text = normalizeFreeText(review.review_text);
+    const merged = `${title} ${text}`.trim();
+    const detectedLanguage = MULTILINGUAL_NORMALIZATION_ENABLED
+      ? detectLanguageHeuristic(merged)
+      : "en";
+
+    return {
+      ...review,
+      review_title: title,
+      review_text: text,
+      detected_language: detectedLanguage,
+    };
+  });
+
+  const languageDistribution = buildLanguageDistribution(normalizedReviews);
+
+  return {
+    reviews: normalizedReviews,
+    telemetry: {
+      multilingual_normalization_enabled: MULTILINGUAL_NORMALIZATION_ENABLED,
+      translate_to_pivot_before_clustering: TRANSLATE_TO_PIVOT_BEFORE_CLUSTERING,
+      pivot_language: PIVOT_LANGUAGE,
+      language_distribution: languageDistribution,
+      non_english_review_count: normalizedReviews.filter(
+        (review) => review.detected_language !== "en" && review.detected_language !== "unknown"
+      ).length,
+    },
+  };
+}
+
 function buildPromptPayload(productContext, reviews) {
   const compactReviews = (reviews || []).slice(0, 150).map((review) => ({
     rating: review.review_rating,
     title: String(review.review_title || "").slice(0, 180),
     text: String(review.review_text || "").slice(0, 700),
+    detected_language: review.detected_language || "unknown",
     verified_purchase: Boolean(review.verified_purchase),
     helpful_votes: review.helpful_votes || 0,
   }));
 
   return {
+    normalization: {
+      pivot_language: PIVOT_LANGUAGE,
+      multilingual_normalization_enabled: MULTILINGUAL_NORMALIZATION_ENABLED,
+      translate_to_pivot_before_clustering: TRANSLATE_TO_PIVOT_BEFORE_CLUSTERING,
+    },
     product: {
       product_id: productContext.product_id,
       product_title: productContext.product_title,
@@ -185,12 +274,18 @@ async function callMistral(promptPayload) {
 
 async function runReviewIntelligenceLLMAgent({ productContext, reviews }) {
   const fallback = buildFallbackReviewIntelligence(reviews);
-  const promptPayload = buildPromptPayload(productContext, reviews);
+  const normalized = normalizeReviewsForClustering(reviews);
+  const promptPayload = buildPromptPayload(productContext, normalized.reviews);
   try {
-    return await callMistral(promptPayload);
+    const llmResult = await callMistral(promptPayload);
+    return {
+      ...llmResult,
+      normalization_telemetry: normalized.telemetry,
+    };
   } catch (error) {
     return {
       ...fallback,
+      normalization_telemetry: normalized.telemetry,
       llm_error: `LLM error: mistral: ${error.message}`,
     };
   }

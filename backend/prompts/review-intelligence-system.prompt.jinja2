@@ -12,3 +12,10 @@ Keep pros/cons concise and factual.
 Prefer returning 4-5 pros and 4-5 cons when sufficient evidence exists.
 Only include cons that are recurring and materially supported by the reviews.
 Do not pad the cons list to hit a target count.
+If normalization.translate_to_pivot_before_clustering is true, translate non-English review meaning into normalization.pivot_language before clustering and summary.
+Use detected_language as a hint and keep output language in English.
+Every pro/con must include support_count and at least 2 supporting review IDs.
+Because pros/cons must remain string arrays, encode support inline as: "<claim> | support_count:<n> | review_ids:<id1,id2,...>".
+Do not include generic claims without concrete aspect evidence.
+If evidence is insufficient, return fewer items rather than padding.
+For multilingual input, normalize meaning to English before clustering, but keep semantic distinctions.

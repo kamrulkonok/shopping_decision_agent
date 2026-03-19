@@ -67,6 +67,22 @@ function runQualityGuardAgent(payload) {
       llm_used: Boolean(payload?.telemetry?.llm_used),
       model: asTrimmedString(payload?.telemetry?.model, "none"),
       blocked_by_captcha: Boolean(payload?.telemetry?.blocked_by_captcha),
+      multilingual_normalization_enabled: Boolean(
+        payload?.telemetry?.multilingual_normalization_enabled
+      ),
+      translate_to_pivot_before_clustering: Boolean(
+        payload?.telemetry?.translate_to_pivot_before_clustering
+      ),
+      pivot_language: asTrimmedString(payload?.telemetry?.pivot_language, "en"),
+      language_distribution:
+        payload?.telemetry?.language_distribution &&
+        typeof payload.telemetry.language_distribution === "object"
+          ? payload.telemetry.language_distribution
+          : {},
+      non_english_review_count: Math.max(
+        0,
+        Math.round(Number(payload?.telemetry?.non_english_review_count ?? 0))
+      ),
     },
   };
 

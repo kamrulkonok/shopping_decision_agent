@@ -83,6 +83,17 @@ async function runReviewIntelligenceOrchestrator(productContext) {
       llm_used: Boolean(llmResult.llm_used),
       model: llmResult.llm_model || "fallback-heuristic",
       blocked_by_captcha: Boolean(productContext.blocked_by_captcha),
+      multilingual_normalization_enabled: Boolean(
+        llmResult?.normalization_telemetry?.multilingual_normalization_enabled
+      ),
+      translate_to_pivot_before_clustering: Boolean(
+        llmResult?.normalization_telemetry?.translate_to_pivot_before_clustering
+      ),
+      pivot_language: llmResult?.normalization_telemetry?.pivot_language || "en",
+      language_distribution: llmResult?.normalization_telemetry?.language_distribution || {},
+      non_english_review_count: Number(
+        llmResult?.normalization_telemetry?.non_english_review_count || 0
+      ),
     },
   };
 
