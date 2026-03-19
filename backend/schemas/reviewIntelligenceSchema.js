@@ -7,7 +7,6 @@ const reviewIntelligenceSchema = {
   type: "object",
   required: [
     "reliability_score",
-    "fake_review_risk",
     "pros",
     "cons",
     "sentiment_clusters",
@@ -24,14 +23,6 @@ const reviewIntelligenceSchema = {
       type: "number",
       minimum: 0,
       maximum: 1,
-    },
-    fake_review_risk: {
-      type: "string",
-      enum: ["low", "medium", "high", "unknown"],
-    },
-    fake_review_risk_reasons: {
-      type: "array",
-      items: { type: "string" },
     },
     pros: {
       type: "array",

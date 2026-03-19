@@ -13,7 +13,7 @@ const decisionSchema = {
     "quality_score",
     "value_score",
     "evidence_score",
-    "risk_penalty",
+    "adjustment_penalty",
     "top_reasons",
     "red_flags",
     "decision_algo_version",
@@ -52,7 +52,7 @@ const decisionSchema = {
       minimum: 0,
       maximum: 100,
     },
-    risk_penalty: {
+    adjustment_penalty: {
       type: "integer",
       minimum: 0,
       maximum: 100,

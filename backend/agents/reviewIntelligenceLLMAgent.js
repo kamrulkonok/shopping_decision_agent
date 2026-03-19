@@ -23,14 +23,7 @@ function buildFallbackReviewIntelligence(reviews) {
         validReviews.length
       : 0;
 
-  const fakeReviewRisk =
-    validReviews.length < 10 ? "unknown" : average >= 4.2 ? "low" : average < 3 ? "high" : "medium";
-
   return {
-    fake_review_risk: fakeReviewRisk,
-    fake_review_risk_reasons: [
-      "Fallback heuristic mode was used because LLM output was unavailable.",
-    ],
     pros:
       pros.length > 0 ? pros : ["Positive signals are limited in the currently available review sample."],
     cons:
@@ -88,8 +81,6 @@ async function callOpenAI(promptPayload) {
     "No markdown, no explanations.",
     "Use this schema exactly:",
     "{",
-    '  "fake_review_risk": "low|medium|high|unknown",',
-    '  "fake_review_risk_reasons": ["..."],',
     '  "pros": ["..."],',
     '  "cons": ["..."],',
     '  "sentiment_clusters": [{"theme":"...","sentiment":"positive|mixed|negative","count":0}],',
@@ -177,8 +168,6 @@ async function callMistral(promptPayload) {
     "No markdown, no explanations.",
     "Use this schema exactly:",
     "{",
-    '  "fake_review_risk": "low|medium|high|unknown",',
-    '  "fake_review_risk_reasons": ["..."],',
     '  "pros": ["..."],',
     '  "cons": ["..."],',
     '  "sentiment_clusters": [{"theme":"...","sentiment":"positive|mixed|negative","count":0}],',
@@ -251,10 +240,7 @@ async function runReviewIntelligenceLLMAgent({ productContext, reviews }) {
 
   return {
     ...fallback,
-    fake_review_risk_reasons: [
-      ...fallback.fake_review_risk_reasons,
-      `LLM error: ${providerErrors.join(" | ")}`,
-    ],
+    llm_error: `LLM error: ${providerErrors.join(" | ")}`,
   };
 }
 

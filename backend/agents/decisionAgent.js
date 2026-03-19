@@ -9,18 +9,6 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function normalizeRisk(risk) {
-  if (risk === "low" || risk === "medium" || risk === "high") return risk;
-  return "unknown";
-}
-
-function getRiskBasePenalty(risk) {
-  if (risk === "low") return 5;
-  if (risk === "medium") return 15;
-  if (risk === "high") return 30;
-  return 12;
-}
-
 function runDecisionAgent({ productContext, reviewIntelligence }) {
   const avgRating = clamp((toNumber(productContext?.average_rating, 0) / 5) * 100);
   const totalRatings = Math.max(0, Math.round(toNumber(productContext?.total_ratings, 0)));
@@ -93,11 +81,9 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
     0.35 * avgRating + 0.2 * volumeScore + 0.25 * sentimentScore + 0.2 * prosConsScore
   );
 
-  const risk = normalizeRisk(reviewIntelligence?.fake_review_risk);
   const negativeRatio = totalClusterCount > 0 ? negativeClusterCount / totalClusterCount : 0;
-  const riskPenalty = clamp(
-    getRiskBasePenalty(risk) +
-      (consCount >= 5 ? 6 : 0) +
+  const adjustmentPenalty = clamp(
+    (consCount >= 5 ? 6 : 0) +
       (negativeRatio >= 0.35 ? 8 : 0) +
       (blockedByCaptcha ? 10 : 0)
   );
@@ -105,7 +91,7 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
   const rawScore = clamp(
     0.35 * qualityScore + 0.25 * valueScore + 0.25 * reliabilityScore + 0.15 * evidenceScore
   );
-  const decisionScore = clamp(rawScore - riskPenalty);
+  const decisionScore = clamp(rawScore - adjustmentPenalty);
 
   const confidence = Math.max(
     0,
@@ -125,11 +111,10 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
   if (
     decisionScore >= 72 &&
     confidence >= 0.55 &&
-    risk !== "high" &&
     decisionState === "sufficient_data"
   ) {
     recommendation = "buy";
-  } else if (decisionScore < 50 || risk === "high") {
+  } else if (decisionScore < 50) {
     recommendation = "avoid";
   }
 
@@ -145,7 +130,6 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
   if (valueScore >= 65) topReasons.push("Value-for-money signal is positive.");
 
   const redFlags = [];
-  if (risk === "high") redFlags.push("High fake/suspicious review risk signal.");
   if (blockedByCaptcha) redFlags.push("Review crawling encountered anti-bot/captcha friction.");
   if (consCount >= 5) redFlags.push("Cons volume is notable.");
   if (decisionState === "insufficient_data") redFlags.push("Not enough high-quality review evidence.");
@@ -158,7 +142,7 @@ function runDecisionAgent({ productContext, reviewIntelligence }) {
     quality_score: Math.round(qualityScore),
     value_score: Math.round(valueScore),
     evidence_score: Math.round(evidenceScore),
-    risk_penalty: Math.round(riskPenalty),
+    adjustment_penalty: Math.round(adjustmentPenalty),
     top_reasons: topReasons.slice(0, 5),
     red_flags: redFlags.slice(0, 5),
     decision_algo_version: DEFAULT_DECISION_ALGO_VERSION,

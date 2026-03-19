@@ -59,7 +59,6 @@ async function runReviewIntelligenceOrchestrator(productContext) {
 
   const scoreResult = runReliabilityScoringAgent({
     reviews: preprocessed.reviews,
-    fakeReviewRisk: llmResult.fake_review_risk,
     blockedByCaptcha: Boolean(productContext.blocked_by_captcha),
   });
 

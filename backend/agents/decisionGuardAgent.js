@@ -40,7 +40,7 @@ function runDecisionGuardAgent(payload) {
   const evidenceScore = clamp(Math.round(Number(payload?.evidence_score ?? 0)), 0, 100);
   const confidence = clamp(Number(payload?.confidence ?? 0.2), 0, 1);
   const decisionState = normalizeDecisionState(payload?.decision_state);
-  const riskPenalty = clamp(Math.round(Number(payload?.risk_penalty ?? 0)), 0, 100);
+  const adjustmentPenalty = clamp(Math.round(Number(payload?.adjustment_penalty ?? 0)), 0, 100);
 
   let recommendation = normalizeRecommendation(payload?.recommendation);
 
@@ -62,7 +62,7 @@ function runDecisionGuardAgent(payload) {
     quality_score: clamp(Math.round(Number(payload?.quality_score ?? 0)), 0, 100),
     value_score: clamp(Math.round(Number(payload?.value_score ?? 0)), 0, 100),
     evidence_score: evidenceScore,
-    risk_penalty: riskPenalty,
+    adjustment_penalty: adjustmentPenalty,
     top_reasons: sanitizeList(payload?.top_reasons, 5),
     red_flags: sanitizeList(payload?.red_flags, 5),
     decision_algo_version: asTrimmedString(payload?.decision_algo_version, "decision-v1"),

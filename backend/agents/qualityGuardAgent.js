@@ -4,11 +4,6 @@ function asTrimmedString(value, fallback = "") {
   return normalized || fallback;
 }
 
-function normalizeRisk(value) {
-  if (value === "low" || value === "medium" || value === "high") return value;
-  return "unknown";
-}
-
 function sanitizeList(items, maxLength = 6) {
   if (!Array.isArray(items)) return [];
   const unique = [];
@@ -58,8 +53,6 @@ function runQualityGuardAgent(payload) {
       0,
       Math.min(1, Number(payload?.reliability_confidence ?? 0.2))
     ),
-    fake_review_risk: normalizeRisk(payload?.fake_review_risk),
-    fake_review_risk_reasons: sanitizeList(payload?.fake_review_risk_reasons, 5),
     pros: sanitizeList(payload?.pros, 6),
     cons: sanitizeList(payload?.cons, 6),
     sentiment_clusters: sanitizeClusters(payload?.sentiment_clusters),
