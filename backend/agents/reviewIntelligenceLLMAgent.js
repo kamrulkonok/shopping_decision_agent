@@ -1,6 +1,53 @@
+const fs = require("fs");
+const path = require("path");
+const nunjucks = require("nunjucks");
+
 const DEFAULT_PROVIDER = (process.env.LLM_PROVIDER || "auto").toLowerCase();
 const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const DEFAULT_MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-small-latest";
+
+const SYSTEM_PROMPT_PATH = path.resolve(
+  __dirname,
+  "../prompts/review-intelligence-system.prompt.jinja2"
+);
+const USER_PROMPT_PATH = path.resolve(
+  __dirname,
+  "../prompts/review-intelligence-user.prompt.jinja2"
+);
+
+function readPromptFile(filePath) {
+  try {
+    return fs.readFileSync(filePath, "utf8").trim();
+  } catch (error) {
+    throw new Error(`Failed to load prompt file at ${filePath}: ${error.message}`);
+  }
+}
+
+const REVIEW_INTELLIGENCE_SYSTEM_PROMPT = readPromptFile(SYSTEM_PROMPT_PATH);
+const REVIEW_INTELLIGENCE_USER_PROMPT_TEMPLATE = readPromptFile(USER_PROMPT_PATH);
+
+const templateEnv = new nunjucks.Environment(undefined, {
+  autoescape: false,
+  throwOnUndefined: false,
+});
+
+function renderPrompt(template, context) {
+  try {
+    return templateEnv.renderString(template, context).trim();
+  } catch (error) {
+    throw new Error(`Failed to render prompt template: ${error.message}`);
+  }
+}
+
+function buildUserPrompt(promptPayload) {
+  return renderPrompt(REVIEW_INTELLIGENCE_USER_PROMPT_TEMPLATE, {
+    payload_json: JSON.stringify(promptPayload),
+  });
+}
+
+function buildSystemPrompt() {
+  return renderPrompt(REVIEW_INTELLIGENCE_SYSTEM_PROMPT, {});
+}
 
 function buildFallbackReviewIntelligence(reviews) {
   const validReviews = Array.isArray(reviews) ? reviews : [];
@@ -75,19 +122,8 @@ async function callOpenAI(promptPayload) {
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const systemPrompt = [
-    "You are a review-intelligence analyst.",
-    "Return only strict JSON.",
-    "No markdown, no explanations.",
-    "Use this schema exactly:",
-    "{",
-    '  "pros": ["..."],',
-    '  "cons": ["..."],',
-    '  "sentiment_clusters": [{"theme":"...","sentiment":"positive|mixed|negative","count":0}],',
-    '  "review_summary": "..."',
-    "}",
-    "Keep pros/cons concise and factual.",
-  ].join("\n");
+  const userPrompt = buildUserPrompt(promptPayload);
+  const systemPrompt = buildSystemPrompt();
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -101,10 +137,7 @@ async function callOpenAI(promptPayload) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Analyze this product review payload:\n${JSON.stringify(promptPayload)}`,
-        },
+        { role: "user", content: userPrompt },
       ],
     }),
   });
@@ -162,19 +195,8 @@ async function callMistral(promptPayload) {
     throw new Error("MISTRAL_API_KEY is not configured.");
   }
 
-  const systemPrompt = [
-    "You are a review-intelligence analyst.",
-    "Return only strict JSON.",
-    "No markdown, no explanations.",
-    "Use this schema exactly:",
-    "{",
-    '  "pros": ["..."],',
-    '  "cons": ["..."],',
-    '  "sentiment_clusters": [{"theme":"...","sentiment":"positive|mixed|negative","count":0}],',
-    '  "review_summary": "..."',
-    "}",
-    "Keep pros/cons concise and factual.",
-  ].join("\n");
+  const userPrompt = buildUserPrompt(promptPayload);
+  const systemPrompt = buildSystemPrompt();
 
   const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
@@ -188,10 +210,7 @@ async function callMistral(promptPayload) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Analyze this product review payload:\n${JSON.stringify(promptPayload)}`,
-        },
+        { role: "user", content: userPrompt },
       ],
     }),
   });

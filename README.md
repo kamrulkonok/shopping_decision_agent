@@ -15,3 +15,11 @@ End-to-end Chrome extension + Node backend for product review intelligence and d
 - `GET /schema/product-context`
 - `GET /schema/review-intelligence`
 - `GET /schema/decision`
+
+## Prompt Files
+
+- Review-intelligence prompts are externalized in:
+	- `backend/prompts/review-intelligence-system.prompt.jinja2`
+	- `backend/prompts/review-intelligence-user.prompt.jinja2`
+
+- Prompt templates are rendered with Nunjucks (Jinja2-style syntax) in the backend agent.
