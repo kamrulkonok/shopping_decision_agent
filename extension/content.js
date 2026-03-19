@@ -502,8 +502,47 @@
     return createListHtmlWithLimit(items, 8);
   }
 
+  function parseEvidenceMeta(itemText) {
+    const text = String(itemText || "");
+    const supportMatch = text.match(/\|\s*support_count\s*:\s*(\d+)/i);
+    const claim = text.split("| support_count:")[0].trim();
+    const supportCount = supportMatch ? Number(supportMatch[1]) : null;
+
+    return {
+      claim: claim || text.trim(),
+      supportCount,
+    };
+  }
+
+  function normalizeDisplayList(items) {
+    const source = Array.isArray(items) ? items : [];
+    const normalized = [];
+    const fallbackClaims = [];
+
+    for (const item of source) {
+      const { claim, supportCount } = parseEvidenceMeta(item);
+
+      if (claim) {
+        fallbackClaims.push(claim);
+      }
+
+      // Hide weak one-off items when support metadata is present.
+      if (Number.isFinite(supportCount) && supportCount < 2) {
+        continue;
+      }
+
+      if (claim) {
+        normalized.push(claim);
+      }
+    }
+
+    // If filtering removes everything, fall back to stripped claims so the UI
+    // does not show empty pros/cons sections.
+    return normalized.length > 0 ? normalized : fallbackClaims;
+  }
+
   function createListHtmlWithLimit(items, limit) {
-    const safeItems = Array.isArray(items) ? items : [];
+    const safeItems = normalizeDisplayList(items);
     if (safeItems.length === 0) {
       return "<li>None</li>";
     }
